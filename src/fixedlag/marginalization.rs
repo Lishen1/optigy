@@ -48,6 +48,8 @@ where
         keys: &[Vkey],
     ) -> Self {
         let e_dim = b_prior.len();
+        assert_eq!(linearization_point.dim(), A_prior.ncols());
+        assert_eq!(A_prior.nrows(), b_prior.len());
         DenseMarginalizationPriorFactor {
             ordering: VariableOrdering::new(keys),
             A_prior: A_prior.clone(),
