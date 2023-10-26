@@ -1,5 +1,4 @@
-#[macro_use]
-extern crate lazy_static;
+use lazy_static::lazy_static;
 use std::cell::RefCell;
 
 use std::collections::{HashMap, VecDeque};
@@ -13,17 +12,14 @@ use std::{env::current_dir, fs::read_to_string};
 
 use clap::Parser;
 use nalgebra::{
-    dmatrix, dvector, matrix, vector, DMatrix, DMatrixView, DMatrixViewMut, DVector, DVectorView,
-    DVectorViewMut, Matrix2, PermutationSequence, RawStorage, RealField, Scalar, Vector, Vector2,
-    Vector3,
+    dvector, matrix, vector, DMatrix, DMatrixView, DVector, DVectorView, Matrix2, RealField,
+    Vector2, Vector3,
 };
 use num::Float;
-use optigy::core::factor::{compute_numerical_jacobians, ErrorReturn};
+use optigy::core::factor::ErrorReturn;
 use optigy::core::loss_function::{DiagonalLoss, ScaleLoss};
 
-use optigy::fixedlag::marginalization::{
-    add_dense_marginalize_prior_factor, marginalize, DenseMarginalizationPriorFactor,
-};
+use optigy::fixedlag::marginalization::{add_dense_marginalize_prior_factor, marginalize};
 
 use optigy::prelude::{
     Factor, FactorGraph, Factors, FactorsContainer, GaussianLoss, JacobiansReturn,
@@ -33,6 +29,7 @@ use optigy::prelude::{
 use optigy::slam::between_factor::BetweenFactor;
 use optigy::slam::prior_factor::PriorFactor;
 use optigy::slam::se3::SE2;
+use optigy::viz::graph_viz::{FactorGraphViz, HighlightFactorsGroup, HighlightVariablesGroup};
 use plotters::coord::types::RangedCoordf64;
 use plotters::coord::Shift;
 use plotters::prelude::*;
@@ -745,6 +742,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         variables_container,
         LevenbergMarquardtOptimizer::with_params(params),
     );
+    let factor_graph_viz = FactorGraphViz::default();
     // println!("current dir {:?}", current_dir().unwrap());
     let landmarks_filename = current_dir().unwrap().join("data").join("landmarks.txt");
     let observations_filename = current_dir().unwrap().join("data").join("observations.txt");
@@ -1001,6 +999,23 @@ fn main() -> Result<(), Box<dyn Error>> {
                 &factor_graph.variables,
             )
             .unwrap();
+            let n_variables = factor_graph.factors.neighborhood_variables(&keys_to_marg);
+            factor_graph_viz.generate_dot(
+                &factor_graph,
+                Some(vec![
+                    HighlightVariablesGroup::new(keys_to_marg.clone(), "m-variables"),
+                    HighlightVariablesGroup::new(n_variables, "n-variables"),
+                ]),
+                // None,
+                // None,
+                Some(vec![HighlightFactorsGroup::new(
+                    factor_graph
+                        .factors
+                        .connected_factors_indexes(&keys_to_marg),
+                    "m-connected-factors",
+                )]),
+            );
+            // panic!("exit");
             factor_graph.add_factor(marg_prior);
             // if !variables.get_map_mut::<E2>().is_empty() {
             //     let l_keys = variables

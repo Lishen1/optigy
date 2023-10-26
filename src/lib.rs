@@ -5,5 +5,7 @@ pub mod linear;
 pub mod nonlinear;
 pub mod prelude;
 pub mod slam;
+#[cfg(feature = "viz")]
+pub mod viz;
 #[cfg(test)]
 mod tests {}

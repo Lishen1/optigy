@@ -80,6 +80,8 @@ where
     // where
     //     N: VariablesKey<R>;
     fn remove(&mut self, key: Vkey) -> bool;
+    /// variable type name used for debugging
+    fn type_name_at(&self, key: Vkey) -> Option<String>;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -173,6 +175,10 @@ where
 
     fn remove(&mut self, _key: Vkey) -> bool {
         false
+    }
+
+    fn type_name_at(&self, key: Vkey) -> Option<String> {
+        None
     }
 }
 
@@ -364,6 +370,14 @@ where
         match var {
             Some(_) => true,
             None => self.parent.remove(key),
+        }
+    }
+
+    fn type_name_at(&self, key: Vkey) -> Option<String> {
+        if self.data.get(&key).is_some() {
+            Some(tynm::type_name::<T::Value>())
+        } else {
+            self.parent.type_name_at(key)
         }
     }
 }

@@ -160,6 +160,9 @@ where
         }
         new_variables
     }
+    pub fn type_name_at(&self, key: Vkey) -> Option<String> {
+        self.container.type_name_at(key)
+    }
 }
 #[cfg(test)]
 mod tests {

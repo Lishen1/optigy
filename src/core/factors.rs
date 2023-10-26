@@ -44,7 +44,14 @@ where
             .add_connected_factor_to(&mut new_factors, keys, &mut indexes, 0);
         new_factors
     }
-
+    pub fn connected_factors_indexes(&self, keys: &[Vkey]) -> Vec<usize> {
+        let mut indexes = Vec::<usize>::default();
+        let mut new_factors = Factors::new(self.container.empty_clone());
+        //TODO: just get indexes of connected factors
+        self.container
+            .add_connected_factor_to(&mut new_factors, keys, &mut indexes, 0);
+        indexes
+    }
     pub fn len(&self) -> usize {
         self.container.len(0)
     }
