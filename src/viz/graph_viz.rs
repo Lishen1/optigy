@@ -97,12 +97,20 @@ impl FactorGraphViz {
         let mut unique_factors_types = HashSet::<String>::default();
 
         for vk in factor_graph.variables.default_variable_ordering().keys() {
-            let type_name = factor_graph.variables.type_name_at(*vk).unwrap();
+            let mut type_name = factor_graph.variables.type_name_at(*vk).unwrap();
+            let s = type_name.split_once('<');
+            if let Some(s) = s {
+                type_name = s.0.to_owned();
+            }
             variables_types.insert(*vk, type_name.clone());
             unique_variables_types.insert(type_name);
         }
         for fi in 0..factor_graph.factors.len() {
-            let type_name = factor_graph.factors.type_name_at(fi).unwrap();
+            let mut type_name = factor_graph.factors.type_name_at(fi).unwrap();
+            let s = type_name.split_once('<');
+            if let Some(s) = s {
+                type_name = s.0.to_owned();
+            }
             factors_types.insert(fi, type_name.clone());
             unique_factors_types.insert(type_name);
         }
@@ -187,7 +195,11 @@ impl FactorGraphViz {
         }
         for f_idx in 0..factor_graph.factors.len() {
             let f_keys = factor_graph.factors.keys_at(f_idx).unwrap();
-            let f_type = factor_graph.factors.type_name_at(f_idx).unwrap();
+            let mut f_type = factor_graph.factors.type_name_at(f_idx).unwrap();
+            let s = f_type.split_once('<');
+            if let Some(s) = s {
+                f_type = s.0.to_owned();
+            }
             let color = if variables_group.is_some() || factors_group.is_some() {
                 if factors_group.is_some() {
                     let fgs = factors_group.as_ref().unwrap();
