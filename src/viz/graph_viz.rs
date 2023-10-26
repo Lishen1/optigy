@@ -1,13 +1,16 @@
+use std::fs::File;
+use std::io::Write;
+
 use crate::prelude::{FactorGraph, FactorsContainer, OptIterate, VariablesContainer, Vkey};
 use angular_units::Deg;
 use dot_graph::{Edge, Graph, Kind, Node, Style, Subgraph};
+use graphviz_rust::{cmd::Format, exec, parse, printer::PrinterContext};
 use hashbrown::{HashMap, HashSet};
 use nalgebra::RealField;
 use num::Float;
 use prisma::{Hsv, Rgb};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-
 fn generate_colors(count: usize, saturation: f64) -> Vec<Hsv<f64>> {
     (0..count)
         .into_iter()
@@ -157,13 +160,14 @@ impl FactorGraphViz {
             };
             graph.add_node(
                 Node::new(format!("x{}", vk.0).as_str())
-                    .shape(Some("circle"))
-                    .style(Style::Filled)
                     .attrib(
                         "fontcolor",
                         &quote_string(color_to_hexcode(fit_font_color(color))),
                     )
-                    .color(Some(&color_to_hexcode(color))),
+                    .shape("circle")
+                    .style(Style::Filled)
+                    .color(&color_to_hexcode(color))
+                    .attrib("fillcolor", &quote_string(color_to_hexcode(color))),
             );
         }
         for (fi, ft) in &factors_types {
@@ -184,13 +188,14 @@ impl FactorGraphViz {
             };
             graph.add_node(
                 Node::new(format!("f{}", fi).as_str())
-                    .shape(Some("square"))
-                    .style(Style::Filled)
                     .attrib(
                         "fontcolor",
                         &quote_string(color_to_hexcode(fit_font_color(color))),
                     )
-                    .color(Some(&color_to_hexcode(color))),
+                    .shape("square")
+                    .style(Style::Filled)
+                    .color(&color_to_hexcode(color))
+                    .attrib("fillcolor", &quote_string(color_to_hexcode(color))),
             );
         }
         for f_idx in 0..factor_graph.factors.len() {
@@ -220,9 +225,8 @@ impl FactorGraphViz {
                     Edge::new(
                         format!("f{}", f_idx).as_str(),
                         format!("x{}", vk.0).as_str(),
-                        "",
                     )
-                    .color(Some(&color_to_hexcode(color))),
+                    .color(&color_to_hexcode(color)),
                 );
             }
         }
@@ -272,11 +276,20 @@ impl FactorGraphViz {
         sg.add_node(
             Node::new("Legend")
                 .attrib("label", &format!("<{}>", legend))
-                .attrib("color", "white")
+                .color("white")
                 .attrib("fontcolor", "white")
-                .shape(Some("none")),
+                .shape("none"),
         );
         graph.add_subgraph(sg);
+
         println!("{}", graph.to_dot_string().unwrap());
+        {
+            let g = parse(&graph.to_dot_string().unwrap()).unwrap();
+            let graph_svg = exec(g, &mut PrinterContext::default(), vec![Format::Svg.into()])
+                .expect("probaly you should install graphviz");
+            let mut output = File::create("graph.svg").unwrap();
+            write!(output, "{}", graph_svg).unwrap();
+        }
+        panic!("done");
     }
 }
