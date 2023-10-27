@@ -1000,7 +1000,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             )
             .unwrap();
             let n_variables = factor_graph.factors.neighborhood_variables(&keys_to_marg);
-            factor_graph_viz.generate_dot(
+            factor_graph_viz.add_page(
                 &factor_graph,
                 Some(vec![
                     HighlightVariablesGroup::new(keys_to_marg.clone(), "m-variables"),

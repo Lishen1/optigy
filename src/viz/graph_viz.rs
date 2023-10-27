@@ -4,6 +4,8 @@ use std::io::Write;
 use crate::prelude::{FactorGraph, FactorsContainer, OptIterate, VariablesContainer, Vkey};
 use angular_units::Deg;
 use dot_graph::{Edge, Graph, Kind, Node, Style, Subgraph};
+use graphviz_rust::cmd::CommandArg;
+use graphviz_rust::print;
 use graphviz_rust::{cmd::Format, exec, parse, printer::PrinterContext};
 use hashbrown::{HashMap, HashSet};
 use nalgebra::RealField;
@@ -83,12 +85,93 @@ impl HighlightFactorsGroup {
 #[derive(Default, Debug)]
 pub struct FactorGraphViz {}
 impl FactorGraphViz {
+    pub fn add_page<FC, VC, O, R>(
+        &self,
+        factor_graph: &FactorGraph<FC, VC, O, R>,
+        variables_group: Option<Vec<HighlightVariablesGroup>>,
+        factors_group: Option<Vec<HighlightFactorsGroup>>,
+    ) -> String
+    where
+        FC: FactorsContainer<R>,
+        VC: VariablesContainer<R>,
+        O: OptIterate<R>,
+        R: RealField + Float,
+    {
+        // for svg convert
+        // sudo apt install ttf-mscorefonts-installer
+        let dot_content = self.generate_dot(factor_graph, variables_group, factors_group);
+        {
+            let g = parse(&dot_content).unwrap();
+            let graph_svg = exec(
+                g,
+                &mut PrinterContext::default(),
+                vec![
+                    Format::Svg.into(),
+                    // CommandArg::Custom("-Nfontname=Helvetica".to_string()),
+                    CommandArg::Custom("-Nfontname=Courier New".to_string()),
+                ],
+            )
+            .expect("probaly you should install graphviz");
+            let mut output = File::create("graph.svg").unwrap();
+            write!(output, "{}", graph_svg).unwrap();
+        }
+        {
+            // let data = std::fs::read("graph.svg").unwrap();
+            use printpdf::*;
+            use std::fs;
+            let page_w = Mm(210.0);
+            let page_h = Mm(297.0);
+
+            let (doc, page1, layer1) =
+                PdfDocument::new("printpdf graphics test", page_w, page_h, "layer");
+            let current_layer = doc.get_page(page1).get_layer(layer1);
+            let text = "There's an invisible annotation with a link covering this text.";
+            let font = doc.add_builtin_font(BuiltinFont::Helvetica).unwrap();
+            let svg = fs::read_to_string("graph.svg").unwrap();
+
+            let svg = Svg::parse(&svg).unwrap();
+            let reference = svg.into_xobject(&current_layer);
+            let svg_w = reference.width.clone();
+            let svg_h = reference.height.clone();
+
+            // println!(
+            //     "svg_w {:?} svg_h {:?}",
+            //     svg.width.into_pt(300.0),
+            //     svg.height.into_pt(300.0)
+            // );
+            println!("svg_w {:?} svg_h {:?}", svg_w, svg_h);
+            let scale = if svg_w < svg_h {
+                svg_w.into_pt(96.0) / page_w.into_pt()
+            } else {
+                svg_h.into_pt(96.0) / page_h.into_pt()
+            };
+            println!("scale {}", scale);
+            // let scale = 1.0;
+            reference.add_to_layer(
+                &current_layer,
+                SvgTransform {
+                    scale_x: Some(scale),
+                    scale_y: Some(scale),
+                    // dpi: Some(96.0),
+                    ..SvgTransform::default()
+                },
+            );
+            current_layer.set_fill_color(Color::Rgb(printpdf::Rgb::new(0.0, 0.0, 1.0, None)));
+            current_layer.set_outline_color(Color::Rgb(printpdf::Rgb::new(1.0, 0.0, 0.0, None)));
+            current_layer.use_text(text, 16.0, Mm(20.0), Mm(285.0), &font);
+            let pdf_bytes = doc.save_to_bytes().unwrap();
+            std::fs::write("test_svg.pdf", &pdf_bytes).unwrap();
+        }
+        panic!("done");
+    }
+
     pub fn generate_dot<FC, VC, O, R>(
         &self,
         factor_graph: &FactorGraph<FC, VC, O, R>,
         variables_group: Option<Vec<HighlightVariablesGroup>>,
         factors_group: Option<Vec<HighlightFactorsGroup>>,
-    ) where
+    ) -> String
+    where
         FC: FactorsContainer<R>,
         VC: VariablesContainer<R>,
         O: OptIterate<R>,
@@ -141,6 +224,9 @@ impl FactorGraphViz {
             .attrib("splines", "true")
             .attrib("bgcolor", "black")
             .attrib("fontcolor", "white");
+        // .attrib("margin", "0");
+        // .attrib("size", &quote_string("50,50!".to_owned()))
+        // .attrib("ratio", &quote_string("fill".to_owned()));
 
         for (vk, vt) in &variables_types {
             let color = if variables_group.is_some() || factors_group.is_some() {
@@ -282,14 +368,6 @@ impl FactorGraphViz {
         );
         graph.add_subgraph(sg);
 
-        println!("{}", graph.to_dot_string().unwrap());
-        {
-            let g = parse(&graph.to_dot_string().unwrap()).unwrap();
-            let graph_svg = exec(g, &mut PrinterContext::default(), vec![Format::Svg.into()])
-                .expect("probaly you should install graphviz");
-            let mut output = File::create("graph.svg").unwrap();
-            write!(output, "{}", graph_svg).unwrap();
-        }
-        panic!("done");
+        graph.to_dot_string().unwrap()
     }
 }
