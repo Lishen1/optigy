@@ -1,0 +1,22 @@
+[package]
+name = "slam_2d"
+version = "0.1.0"
+edition = "2021"
+
+workspace = "../../"
+[dependencies]
+plotters = {version="0.3.5", features = ["ttf", "all_series"] }
+optigy = { path = "../../" }
+nalgebra = {version="0.32.3", features=["compare"]}
+nalgebra-sparse = {version="0.9.0", features=["compare"]}
+clap = { version = "4.3.23", features = ["derive"]}
+sophus-rs= { git = "https://github.com/Lishen1/sophus-rs.git",  branch="lie-only" }
+num = "0.4.1"
+random_color = "0.6.1" 
+lazy_static = "1.4.0"
+# macroquad = "0.4"
+# macroquad = {version="0.4", path="../../../macroquad"}
+macroquad = {version="0.4", git = "https://github.com/Lishen1/macroquad.git",  branch="fix/aa"}
+futures = "0.3.1"
+tokio = { version = "1.34.0", features = ["full"] }
+gif = "0.12.0"
