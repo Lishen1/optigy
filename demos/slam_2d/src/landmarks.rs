@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use nalgebra::{matrix, vector, Matrix2, Vector2};
 use num::Float;
@@ -120,7 +120,7 @@ where
             }
         }
         // println!("max_ang {}", max_ang);
-        if max_ang < R::from_f64(5.0).unwrap() {
+        if max_ang < R::from_f64(8.0).unwrap() {
             return;
         }
 
@@ -152,8 +152,12 @@ where
                 let p = &poses[i];
                 let r = &rays[i];
                 let nr = (coord - p).normalize();
-                let ang = Float::abs(Float::acos(r.dot(&nr)).to_degrees());
-                if ang > R::from_f64(0.1).unwrap() {
+                let ang =
+                    Float::abs(Float::acos(r.dot(&nr).clamp(-R::one(), R::one())).to_degrees());
+                if !ang.is_finite() {
+                    dbg!(coord, p, nr, r.dot(&nr));
+                }
+                if ang > R::from_f64(1.0).unwrap() {
                     return;
                 }
             }
@@ -177,7 +181,9 @@ pub struct Landmarks<R = f64>
 where
     R: Real,
 {
-    landmarks: HashMap<Vkey, Landmark<R>>,
+    //unsorted landmarks lead to unstable unrepeaded results up to completely optimization broke
+    // landmarks: HashMap<Vkey, Landmark<R>>,
+    landmarks: BTreeMap<Vkey, Landmark<R>>,
 }
 
 impl<R> Landmarks<R>

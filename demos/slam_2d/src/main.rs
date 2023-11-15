@@ -4,16 +4,14 @@ use state_variables::E2;
 use core::time;
 use macroquad::prelude::*;
 use std::collections::VecDeque;
-use std::rc::Rc;
 
 use std::error::Error;
 use std::fs::{self, File};
-use std::io::{self, Write};
+use std::io::Write;
 
 use std::thread;
 use std::time::Instant;
 use std::{env::current_dir, fs::read_to_string};
-use tokio::runtime::{Builder, Runtime};
 
 use clap::Parser;
 use nalgebra::{
@@ -51,6 +49,10 @@ struct Args {
     write_gif: bool,
     #[arg(short, long, action)]
     marginalize: bool,
+    #[arg(short, long, action)]
+    use_gps: bool,
+    #[arg(short, long, action)]
+    use_vision: bool,
 }
 fn fmt_f64(num: f64, width: usize, precision: usize, exp_pad: usize) -> String {
     let mut num = format!("{:.precision$e}", num, precision = precision);
@@ -116,9 +118,7 @@ fn draw<FC, VC>(
     id: usize,
     gt_poses: &Vec<Vector3<f64>>,
     poses_keys: &VecDeque<Vkey>,
-    _landmarks_cnt: usize,
     poses_history: &Vec<Vector2<f64>>,
-    rt: Rc<Runtime>,
     render_target: RenderTarget,
     write_gif: bool,
 ) where
@@ -236,16 +236,17 @@ fn draw<FC, VC>(
         draw_text(format!("{}", k.0).as_str(), wc.x, ty, 35.0, WHITE)
     }
     set_camera(&camera);
-    for (i, f) in factors
+    for (_i, f) in factors
         .get_vec::<GPSPositionFactor<f64>>()
         .iter()
         .enumerate()
     {
-        draw_circle(
+        draw_circle_lines(
             f.pose[0] as f32,
             f.pose[1] as f32,
             gps_rad,
-            RANDOM_COLORS[i % RANDOM_COLORS.len()],
+            thickness,
+            RANDOM_COLORS[f.keys()[0].0 % RANDOM_COLORS.len()],
         );
     }
 
@@ -345,20 +346,6 @@ fn draw<FC, VC>(
         },
     );
 
-    // futures::executor::block_on(next_frame());
-    // let runtime = Builder::new_multi_thread()
-    //     .worker_threads(1)
-    //     .enable_all()
-    //     .build()
-    //     .unwrap();
-    // let nf = rt.spawn(async { next_frame().await });
-    // while !nf.is_finished() {
-    //     thread::sleep(time::Duration::from_millis(1));
-    // }
-    // rt.block_on(next_frame());
-    // futures::executor::block_on(async {
-    //     next_frame().await;
-    // });
     if !write_gif {
         thread::sleep(time::Duration::from_millis(20));
     }
@@ -462,16 +449,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let th = l.next().unwrap().parse::<f64>()?;
         gt_poses.push(Vector3::new(x, y, th));
     }
-    let mut min_x = f64::MAX;
-    let mut max_x = f64::MIN;
-    let mut min_y = f64::MAX;
-    let mut max_y = f64::MIN;
-    for gt in &gt_poses {
-        min_x = min_x.min(gt[0]);
-        max_x = max_x.max(gt[0]);
-        min_y = min_y.min(gt[1]);
-        max_y = max_y.max(gt[1]);
-    }
 
     const OUTPUT_GIF: &str = "2d-slam.gif";
     let img_w = 800_i32;
@@ -480,7 +457,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let write_pdf = false;
     let image: Option<fs::File>;
     let mut encoder: Option<gif::Encoder<fs::File>> = None;
-    if args.write_gif {
+    if args.write_gif || args.do_viz {
         image = Some(File::create(OUTPUT_GIF).unwrap());
         encoder = Some(gif::Encoder::new(image.unwrap(), img_w as u16, img_h as u16, &[]).unwrap());
     }
@@ -492,6 +469,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .enumerate()
         .enumerate()
     {
+        let mut min_x = f64::MAX;
+        let mut max_x = f64::MIN;
+        let mut min_y = f64::MAX;
+        let mut max_y = f64::MIN;
+        for gt in &gt_poses {
+            min_x = min_x.min(gt[0]);
+            max_x = max_x.max(gt[0]);
+            min_y = min_y.min(gt[1]);
+            max_y = max_y.max(gt[1]);
+        }
+        for l in factor_graph.variables().get_map::<E2>().values() {
+            min_x = min_x.min(l.val.x);
+            max_x = max_x.max(l.val.x);
+            min_y = min_y.min(l.val.y);
+            max_y = max_y.max(l.val.y);
+        }
         let mut l = line.split_whitespace();
         let x = l.next().unwrap().parse::<f64>()?;
         let y = l.next().unwrap().parse::<f64>()?;
@@ -526,15 +519,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         {
             let mut l = gps_lines[id].split_whitespace();
-            let _gpsx = l.next().unwrap().parse::<f64>()?;
-            let _gpsy = l.next().unwrap().parse::<f64>()?;
-            let _sigx = l.next().unwrap().parse::<f64>()?;
-            let _sigy = l.next().unwrap().parse::<f64>()?;
-            // factor_graph.add_factor(GPSPositionFactor::new(
-            //     Vkey(id + landmarks_init.len()),
-            //     vector![gpsx, gpsy],
-            //     vector![sigx, sigy],
-            // ));
+            let gpsx = l.next().unwrap().parse::<f64>()?;
+            let gpsy = l.next().unwrap().parse::<f64>()?;
+            let sigx = l.next().unwrap().parse::<f64>()?;
+            let sigy = l.next().unwrap().parse::<f64>()?;
+            if args.use_gps {
+                factor_graph.add_factor(GPSPositionFactor::new(
+                    curr_pose_id,
+                    vector![gpsx, gpsy],
+                    vector![sigx, sigy],
+                ));
+            }
         }
 
         poses_keys.push_back(curr_pose_id);
@@ -575,16 +570,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let sy = l.next().unwrap().parse::<f64>()?;
             let sxy = l.next().unwrap().parse::<f64>()?;
             let landmark_id = factor_graph.map_key(Vkey(id));
-            landmarks.add_observation(
-                &mut factor_graph,
-                curr_pose_id,
-                landmark_id,
-                rx,
-                ry,
-                sx,
-                sy,
-                sxy,
-            );
+            if args.use_vision {
+                landmarks.add_observation(
+                    &mut factor_graph,
+                    curr_pose_id,
+                    landmark_id,
+                    rx,
+                    ry,
+                    sx,
+                    sy,
+                    sxy,
+                );
+            }
 
             // if let Some(l) = variables.get::<E2>(Key(id)) {
             //     let r = R * Vector2::<f64>::new(rx, ry);
@@ -616,9 +613,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         //     }
         // }
 
-        let rt = Rc::new(tokio::runtime::Runtime::new().unwrap());
-        let render_target = render_target(img_w as u32, img_h as u32);
-        render_target.texture.set_filter(FilterMode::Nearest);
+        let mut ren_tar: Option<RenderTarget> = None;
+        if args.do_viz {
+            ren_tar = Some(render_target(img_w as u32, img_h as u32));
+            ren_tar
+                .as_mut()
+                .unwrap()
+                .texture
+                .set_filter(FilterMode::Nearest);
+        }
         assert_eq!(factor_graph.unused_variables_count(), 0);
         let start = Instant::now();
         let win_size = 6;
@@ -638,19 +641,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             id,
                             &gt_poses,
                             &poses_keys,
-                            landmarks_init.len(),
                             &poses_history,
-                            rt.clone(),
-                            render_target.clone(),
+                            ren_tar.as_ref().unwrap().clone(),
                             args.write_gif,
                         )
                     },
                 )
                 .build();
+            println!("opt");
             let res = factor_graph.optimize(opt_params);
             next_frame().await;
             if args.write_gif {
-                let mut frame = render_target.texture.get_texture_data();
+                let mut frame = ren_tar.as_ref().unwrap().texture.get_texture_data();
                 let frame = gif::Frame::from_rgba(frame.width, frame.height, &mut frame.bytes);
                 encoder.as_mut().unwrap().write_frame(&frame).unwrap();
             }
@@ -660,6 +662,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let opt_params = <OptParams<_, _, _>>::builder().build();
             factor_graph.optimize(opt_params)
         };
+        if poses_keys.len() > 3 {
+            // return Ok(());
+        }
+        // if step == 40 {
+        //     loop {
+        //         thread::sleep(time::Duration::from_millis(20));
+        //     }
+        // }
 
         if poses_keys.len() >= win_size {
             let first_pose_id = poses_keys.pop_front().unwrap();
