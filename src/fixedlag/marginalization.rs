@@ -74,7 +74,7 @@ where
     {
         {
             let dx = variables.local(&self.linearization_point, &self.ordering);
-            let r = self.A_prior.clone() * dx + self.b_prior.clone();
+            let r = self.A_prior.clone() * dx.clone() + self.b_prior.clone();
             self.error.borrow_mut().copy_from(&r);
         }
         self.error.borrow()

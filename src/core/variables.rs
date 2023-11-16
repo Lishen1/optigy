@@ -4,10 +4,11 @@ use crate::core::variable_ordering::VariableOrdering;
 use crate::core::variables_container::{get_variable, get_variable_mut, VariablesContainer};
 use nalgebra::{DVector, DVectorView};
 
-use std::marker::PhantomData;
+use std::cell::RefCell;
 
 use super::factors::Factors;
 use super::factors_container::FactorsContainer;
+use super::variable::TangentReturn;
 use super::variables_container::{get_map, get_map_mut};
 use super::{HashMap, Real};
 
@@ -20,7 +21,7 @@ where
 {
     // pub(crate) container: C,
     pub container: C,
-    phantom: PhantomData<R>,
+    local: RefCell<DVector<R>>,
 }
 
 impl<C, R> Variables<C, R>
@@ -31,7 +32,7 @@ where
     pub fn new(container: C) -> Self {
         Variables::<C, R> {
             container,
-            phantom: PhantomData,
+            local: RefCell::new(DVector::<R>::zeros(1)),
         }
     }
     /// Creates new Variables from subset of `variables` with `keys`.
@@ -77,13 +78,12 @@ where
         variables
     }
 
-    //TODO: return DVectorView
     /// Returns local tangents of all variables. See [Variable::local]
     pub fn local<VC>(
         &self,
         variables: &Variables<VC, R>,
         variable_ordering: &VariableOrdering,
-    ) -> DVector<R>
+    ) -> TangentReturn<R>
     where
         VC: VariablesContainer<R>,
     {
@@ -94,7 +94,8 @@ where
             d = self.container.local(variables, delta.as_view_mut(), key, d);
         }
         debug_assert_eq!(delta.nrows(), d);
-        delta
+        *self.local.borrow_mut() = delta;
+        self.local.borrow()
     }
 
     pub fn default_variable_ordering(&self) -> VariableOrdering {

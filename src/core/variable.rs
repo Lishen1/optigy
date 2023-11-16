@@ -1,12 +1,15 @@
+use std::cell::Ref;
+
 use nalgebra::{DVector, DVectorView, RealField};
 /// Represent variable $\textbf{x}_i$ of factor graph.
+pub type TangentReturn<'a, R> = Ref<'a, DVector<R>>;
 pub trait Variable<R>: Clone
 where
     R: RealField,
 {
     /// Returns local tangent such: $\textbf{x}_i \boxminus \breve{\textbf{x}}_i$
     /// where $\breve{\textbf{x}}_i$ is linearization point in case of marginalization.
-    fn local(&self, linearization_point: &Self) -> DVector<R>
+    fn local(&self, linearization_point: &Self) -> TangentReturn<R>
     where
         R: RealField;
     /// Retract (perturbate) $\textbf{x}_i$ by `delta` such:
@@ -28,6 +31,8 @@ where
 }
 #[cfg(test)]
 pub(crate) mod tests {
+    use std::cell::RefCell;
+
     use rand::Rng;
 
     use super::*;
@@ -38,17 +43,19 @@ pub(crate) mod tests {
         R: RealField,
     {
         pub val: DVector<R>,
+        local: RefCell<DVector<R>>,
     }
 
     impl<R> Variable<R> for VariableA<R>
     where
         R: RealField,
     {
-        fn local(&self, value: &Self) -> DVector<R>
+        fn local(&self, value: &Self) -> TangentReturn<R>
         where
             R: RealField,
         {
-            self.val.clone() - value.val.clone()
+            *self.local.borrow_mut() = self.val.clone() - value.val.clone();
+            self.local.borrow()
         }
 
         fn retract(&mut self, delta: DVectorView<R>)
@@ -68,17 +75,19 @@ pub(crate) mod tests {
         R: RealField,
     {
         pub val: DVector<R>,
+        local: RefCell<DVector<R>>,
     }
 
     impl<R> Variable<R> for VariableB<R>
     where
         R: RealField,
     {
-        fn local(&self, value: &Self) -> DVector<R>
+        fn local(&self, value: &Self) -> TangentReturn<R>
         where
             R: RealField,
         {
-            self.val.clone() - value.val.clone()
+            *self.local.borrow_mut() = self.val.clone() - value.val.clone();
+            self.local.borrow()
         }
 
         fn retract(&mut self, delta: DVectorView<R>)
@@ -100,6 +109,7 @@ pub(crate) mod tests {
         pub fn new(v: R) -> Self {
             VariableA {
                 val: DVector::<R>::from_element(3, v),
+                local: RefCell::new(DVector::<R>::zeros(3)),
             }
         }
     }
@@ -110,6 +120,7 @@ pub(crate) mod tests {
         pub fn new(v: R) -> Self {
             VariableB {
                 val: DVector::<R>::from_element(3, v),
+                local: RefCell::new(DVector::<R>::zeros(3)),
             }
         }
     }
@@ -120,17 +131,19 @@ pub(crate) mod tests {
         R: RealField,
     {
         pub val: DVector<R>,
+        local: RefCell<DVector<R>>,
     }
 
     impl<R> Variable<R> for RandomVariable<R>
     where
         R: RealField,
     {
-        fn local(&self, value: &Self) -> DVector<R>
+        fn local(&self, value: &Self) -> TangentReturn<R>
         where
             R: RealField,
         {
-            self.val.clone() - value.val.clone()
+            *self.local.borrow_mut() = self.val.clone() - value.val.clone();
+            self.local.borrow()
         }
 
         fn retract(&mut self, delta: DVectorView<R>)
@@ -152,6 +165,7 @@ pub(crate) mod tests {
             let mut rng = rand::thread_rng();
             RandomVariable {
                 val: DVector::from_fn(3, |_, _| R::from_f64(rng.gen::<f64>()).unwrap()),
+                local: RefCell::new(DVector::<R>::zeros(3)),
             }
         }
     }
