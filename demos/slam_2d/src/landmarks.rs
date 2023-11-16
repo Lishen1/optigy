@@ -1,13 +1,13 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use nalgebra::{matrix, vector, Matrix2, Vector2};
 use num::Float;
-use optigy::{
-    prelude::{Factor, FactorGraph, FactorsContainer, OptIterate, Real, VariablesContainer, Vkey},
-    slam::se3::SE2,
+use optigy::prelude::{
+    Factor, FactorGraph, FactorsContainer, OptIterate, Real, VariablesContainer, Vkey,
 };
 
 use crate::{vision_factor::VisionFactor, E2};
+use slam_common::se2::SE2;
 
 pub struct Landmark<R>
 where

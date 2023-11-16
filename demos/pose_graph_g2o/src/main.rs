@@ -6,20 +6,20 @@ use clap::Parser;
 use nalgebra::Matrix3;
 use optigy::core::loss_function::ScaleLoss;
 
-
 use optigy::nonlinear::levenberg_marquardt_optimizer::{
     LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
 };
 use optigy::prelude::{
-    Factors, FactorsContainer, GaussianLoss, NonlinearOptimizer, Variables, VariablesContainer, Vkey,
+    Factors, FactorsContainer, GaussianLoss, NonlinearOptimizer, Variables, VariablesContainer,
+    Vkey,
 };
-use optigy::slam::between_factor::BetweenFactor;
-use optigy::slam::prior_factor::PriorFactor;
-use optigy::slam::se3::SE2;
 use plotters::coord::types::RangedCoordf64;
 use plotters::prelude::*;
 use plotters::style::full_palette::BLACK;
 
+use slam_common::between_factor::BetweenFactor;
+use slam_common::prior_factor::PriorFactor;
+use slam_common::se2::SE2;
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]

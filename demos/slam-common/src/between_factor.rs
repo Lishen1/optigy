@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use nalgebra::{DMatrix, DVector, SMatrix, Vector2};
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
-use crate::core::{
+use optigy::core::{
     factor::{ErrorReturn, Factor, Jacobians, JacobiansReturn},
     key::Vkey,
     loss_function::{GaussianLoss, LossFunction},
@@ -12,10 +12,10 @@ use crate::core::{
     Real,
 };
 
-use super::se3::SE2;
+use super::se2::SE2;
 
 #[derive(Clone)]
-pub struct PriorFactor<LF = GaussianLoss, R = f64>
+pub struct BetweenFactor<LF = GaussianLoss, R = f64>
 where
     R: Real,
     LF: LossFunction<R>,
@@ -26,15 +26,16 @@ where
     pub origin: Isometry2,
     pub loss: Option<LF>,
 }
-impl<LF, R> PriorFactor<LF, R>
+impl<LF, R> BetweenFactor<LF, R>
 where
     R: Real,
     LF: LossFunction<R>,
 {
-    pub fn new(key: Vkey, x: f64, y: f64, theta: f64, loss: Option<LF>) -> Self {
-        let keys = vec![key];
-        let jacobians = DMatrix::<R>::identity(3, 3 * keys.len());
-        PriorFactor {
+    pub fn new(key0: Vkey, key1: Vkey, x: f64, y: f64, theta: f64, loss: Option<LF>) -> Self {
+        let keys = vec![key0, key1];
+        let mut jacobians = DMatrix::<R>::zeros(3, 3 * keys.len());
+        jacobians.columns_mut(3, 3).fill_diagonal(R::one());
+        BetweenFactor {
             error: RefCell::new(DVector::zeros(3)),
             jacobians: RefCell::new(jacobians),
             keys,
@@ -47,19 +48,8 @@ where
             loss,
         }
     }
-    pub fn from_se2(key: Vkey, origin: Isometry2, loss: Option<LF>) -> Self {
-        let keys = vec![key];
-        let jacobians = DMatrix::<R>::identity(3, 3 * keys.len());
-        PriorFactor {
-            error: RefCell::new(DVector::zeros(3)),
-            jacobians: RefCell::new(jacobians),
-            keys,
-            origin,
-            loss,
-        }
-    }
 }
-impl<LF, R> Factor<R> for PriorFactor<LF, R>
+impl<LF, R> Factor<R> for BetweenFactor<LF, R>
 where
     R: Real,
     LF: LossFunction<R>,
@@ -70,21 +60,39 @@ where
         C: VariablesContainer<R>,
     {
         let v0: &SE2<R> = variables.get(self.keys()[0]).unwrap();
-        let diff = (self.origin.inverse().multiply(&v0.origin)).log();
+        let v1: &SE2<R> = variables.get(self.keys()[1]).unwrap();
+
+        let diff = v0.origin.inverse().multiply(&v1.origin);
+        let diff = (self.origin.inverse().multiply(&diff)).log();
         {
             self.error.borrow_mut().copy_from(&diff.cast::<R>());
         }
         self.error.borrow()
     }
 
-    fn jacobians<C>(&self, _variables: &Variables<C, R>) -> JacobiansReturn<R>
+    fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobiansReturn<R>
     where
         C: VariablesContainer<R>,
     {
-        //identity
-        // {
-        //     compute_numerical_jacobians(variables, self, &mut self.jacobians.borrow_mut());
-        // }
+        {
+            let v0: &SE2<R> = variables.get(self.keys()[0]).unwrap();
+            let v1: &SE2<R> = variables.get(self.keys()[1]).unwrap();
+            let hinv = -v0.origin.adj();
+            let hcmp1 = v1.origin.inverse().adj();
+            let j = (hcmp1 * hinv).cast::<R>();
+            self.jacobians.borrow_mut().columns_mut(0, 3).copy_from(&j);
+            {
+                let v0: &SE2<R> = variables.get(self.keys()[0]).unwrap();
+                let v1: &SE2<R> = variables.get(self.keys()[1]).unwrap();
+                let hinv = -v0.origin.adj();
+                let hcmp1 = v1.origin.inverse().adj();
+                let j = (hcmp1 * hinv).cast::<R>();
+                self.jacobians.borrow_mut().columns_mut(0, 3).copy_from(&j);
+            }
+            // {
+            //     compute_numerical_jacobians(variables, self, &mut self.jacobians.borrow_mut());
+            // }
+        }
         self.jacobians.borrow()
     }
 

@@ -4,7 +4,7 @@ use nalgebra::{DVector, DVectorView, RealField, SMatrix, Vector2, Vector3};
 use num::Float;
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
-use crate::core::variable::Variable;
+use optigy::core::variable::Variable;
 
 #[derive(Debug, Clone)]
 pub struct SE2<R = f64>

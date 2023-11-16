@@ -2,14 +2,10 @@ use std::cell::RefCell;
 
 use nalgebra::{matrix, vector, DMatrix, DVector, Vector2};
 use num::Float;
-use optigy::{
-    prelude::{
-        DiagonalLoss, ErrorReturn, Factor, JacobiansReturn, Real, Variables, VariablesContainer,
-        Vkey,
-    },
-    slam::se3::SE2,
+use optigy::prelude::{
+    DiagonalLoss, ErrorReturn, Factor, JacobiansReturn, Real, Variables, VariablesContainer, Vkey,
 };
-
+use slam_common::se2::SE2;
 #[derive(Clone)]
 pub struct GPSPositionFactor<R = f64>
 where

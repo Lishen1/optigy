@@ -24,9 +24,6 @@ use optigy::prelude::{
     FactorsContainer, GaussianLoss, LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
     NonlinearOptimizerVerbosityLevel, OptParams, ScaleLoss, Variables, VariablesContainer, Vkey,
 };
-use optigy::slam::between_factor::BetweenFactor;
-use optigy::slam::prior_factor::PriorFactor;
-use optigy::slam::se3::SE2;
 use optigy::viz::graph_viz::FactorGraphViz;
 use random_color::RandomColor;
 pub mod gps_factor;
@@ -37,6 +34,10 @@ use gps_factor::GPSPositionFactor;
 use vision_factor::VisionFactor;
 
 use crate::landmarks::Landmarks;
+
+use slam_common::between_factor::BetweenFactor;
+use slam_common::prior_factor::PriorFactor;
+use slam_common::se2::SE2;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]

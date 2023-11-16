@@ -5,26 +5,15 @@ use nalgebra::vector;
 use nalgebra::Vector2;
 use nalgebra::{DMatrix, DVector};
 
+use optigy::prelude::{
+    DiagonalLoss, ErrorReturn, Factor, FactorGraph, FactorsContainer, GaussianLoss, Jacobians,
+    JacobiansReturn, LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
+    NonlinearOptimizerVerbosityLevel, OptParams, Real, ScaleLoss, Variables, VariablesContainer,
+    Vkey,
+};
 
-use optigy::prelude::DiagonalLoss;
-use optigy::prelude::ErrorReturn;
-use optigy::prelude::FactorGraph;
-use optigy::prelude::FactorsContainer;
-use optigy::prelude::Jacobians;
-
-use optigy::prelude::GaussianLoss;
-use optigy::prelude::JacobiansReturn;
-use optigy::prelude::LevenbergMarquardtOptimizer;
-use optigy::prelude::LevenbergMarquardtOptimizerParams;
-
-use optigy::prelude::NonlinearOptimizerVerbosityLevel;
-use optigy::prelude::OptParams;
-use optigy::prelude::Real;
-use optigy::prelude::ScaleLoss;
-use optigy::prelude::VariablesContainer;
-use optigy::prelude::{Factor, Variables, Vkey};
-use optigy::slam::between_factor::BetweenFactor;
-use optigy::slam::se3::SE2;
+use slam_common::between_factor::BetweenFactor;
+use slam_common::se2::SE2;
 
 #[derive(Clone)]
 struct GPSPositionFactor<R = f64>

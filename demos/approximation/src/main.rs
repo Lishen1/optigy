@@ -10,33 +10,30 @@ use nalgebra::DVectorView;
 use nalgebra::Vector2;
 use nalgebra::{DMatrix, DVector};
 use num::Float;
-use optigy::core::factor::ErrorReturn;
-use optigy::core::factor::Jacobians;
-use optigy::core::loss_function::DiagonalLoss;
-use optigy::core::loss_function::ScaleLoss;
 
-use optigy::core::variable_ordering::VariableOrdering;
 use optigy::fixedlag::marginalization::marginalize;
 use optigy::fixedlag::marginalization::symmetrize_with_mean;
-
 use optigy::fixedlag::marginalization::try_invert_symmetric_positive_semidefinite_matrix;
-use optigy::nonlinear::levenberg_marquardt_optimizer::LevenbergMarquardtOptimizer;
-use optigy::nonlinear::levenberg_marquardt_optimizer::LevenbergMarquardtOptimizerParams;
 use optigy::nonlinear::linearization::linearzation_jacobian;
 use optigy::nonlinear::sparsity_pattern::construct_jacobian_sparsity;
+use optigy::prelude::DiagonalLoss;
+use optigy::prelude::ErrorReturn;
 use optigy::prelude::Factors;
 use optigy::prelude::FactorsContainer;
 
 use optigy::prelude::JacobiansReturn;
+use optigy::prelude::LevenbergMarquardtOptimizer;
+use optigy::prelude::LevenbergMarquardtOptimizerParams;
 use optigy::prelude::NonlinearOptimizer;
 
 use optigy::prelude::NonlinearOptimizerVerbosityLevel;
 use optigy::prelude::Real;
+use optigy::prelude::VariableOrdering;
 use optigy::prelude::VariablesContainer;
-use optigy::prelude::{Factor, Variables, Vkey};
-use optigy::slam::between_factor::BetweenFactor;
-use optigy::slam::se3::SE2;
+use optigy::prelude::{Factor, Jacobians, ScaleLoss, Variables, Vkey};
 use rgb::RGB8;
+use slam_common::between_factor::BetweenFactor;
+use slam_common::se2::SE2;
 use textplots::Chart;
 use textplots::ColorPlot;
 use textplots::Shape;

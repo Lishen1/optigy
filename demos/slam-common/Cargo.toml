@@ -1,5 +1,5 @@
 [package]
-name = "approximation"
+name = "slam_common"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,9 +7,5 @@ workspace = "../../"
 [dependencies]
 optigy = { path = "../../" }
 nalgebra = {version="0.32.3", features=["compare"]}
-clap = { version = "4.3.23", features = ["derive"]}
-textplots = "0.8.4"
-rgb = "0.8.27"
-color-print = "0.3.5"
-slam_common= { path = "../slam-common" }
+sophus-rs= { git = "https://github.com/Lishen1/sophus-rs.git",  branch="lie-only" }
 num = "0.4.1"

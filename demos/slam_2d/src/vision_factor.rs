@@ -2,15 +2,12 @@ use std::cell::RefCell;
 
 use nalgebra::{matrix, vector, DMatrix, DMatrixView, DVector, Matrix2, Vector2};
 use num::Float;
-use optigy::{
-    prelude::{
-        ErrorReturn, Factor, GaussianLoss, JacobiansReturn, Real, Variables, VariablesContainer,
-        Vkey,
-    },
-    slam::se3::SE2,
+use optigy::prelude::{
+    ErrorReturn, Factor, GaussianLoss, JacobiansReturn, Real, Variables, VariablesContainer, Vkey,
 };
 
 use crate::E2;
+use slam_common::se2::SE2;
 
 #[derive(Clone)]
 pub struct VisionFactor<R = f64>
