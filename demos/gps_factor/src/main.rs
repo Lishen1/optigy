@@ -6,8 +6,8 @@ use nalgebra::Vector2;
 use nalgebra::{DMatrix, DVector};
 
 use optigy::prelude::{
-    DiagonalLoss, ErrorReturn, Factor, FactorGraph, FactorsContainer, GaussianLoss, Jacobians,
-    JacobiansReturn, LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
+    DiagonalLoss, ErrorReturn, Factor, FactorGraph, FactorsContainer, GaussianLoss, JacobianReturn,
+    Jacobians, LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
     NonlinearOptimizerVerbosityLevel, OptParams, Real, ScaleLoss, Variables, VariablesContainer,
     Vkey,
 };
@@ -61,7 +61,7 @@ where
         self.error.borrow()
     }
 
-    fn jacobians<C>(&self, _variables: &Variables<C, R>) -> JacobiansReturn<R>
+    fn jacobians<C>(&self, _variables: &Variables<C, R>) -> JacobianReturn<R>
     where
         C: VariablesContainer<R>,
     {

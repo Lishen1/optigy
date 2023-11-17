@@ -1,10 +1,13 @@
 use std::cell::RefCell;
 
-use nalgebra::{DVector, DVectorView, RealField, SMatrix, Vector2, Vector3};
+use nalgebra::{DMatrix, DVector, DVectorView, RealField, SMatrix, Vector2, Vector3};
 use num::Float;
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
-use optigy::core::variable::{TangentReturn, Variable};
+use optigy::{
+    core::variable::{TangentReturn, Variable},
+    prelude::JacobianReturn,
+};
 
 #[derive(Debug, Clone)]
 pub struct SE2<R = f64>
@@ -13,6 +16,7 @@ where
 {
     pub origin: Isometry2,
     local: RefCell<DVector<R>>,
+    jac: RefCell<DMatrix<R>>,
 }
 
 impl<R> Variable<R> for SE2<R>
@@ -50,6 +54,12 @@ where
     fn dim(&self) -> usize {
         3
     }
+
+    fn retract_local_jacobian(&self, _linearization_pointt: &Self) -> JacobianReturn<R> {
+        let i = DMatrix::<R>::identity(3, 3);
+        *self.jac.borrow_mut() = i;
+        self.jac.borrow()
+    }
 }
 impl<R> SE2<R>
 where
@@ -64,6 +74,7 @@ where
                 )),
             ),
             local: RefCell::new(DVector::<R>::zeros(3)),
+            jac: RefCell::new(DMatrix::<R>::identity(3, 3)),
         }
     }
 }

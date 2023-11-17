@@ -4,7 +4,7 @@ use nalgebra::{DMatrix, DVector, SMatrix, Vector2};
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
 use optigy::core::{
-    factor::{ErrorReturn, Factor, Jacobians, JacobiansReturn},
+    factor::{ErrorReturn, Factor, JacobianReturn, Jacobians},
     key::Vkey,
     loss_function::{GaussianLoss, LossFunction},
     variables::Variables,
@@ -70,7 +70,7 @@ where
         self.error.borrow()
     }
 
-    fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobiansReturn<R>
+    fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobianReturn<R>
     where
         C: VariablesContainer<R>,
     {

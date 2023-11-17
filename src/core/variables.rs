@@ -1,8 +1,9 @@
+use crate::core::factor::JacobiansReturn;
 use crate::core::key::Vkey;
 use crate::core::variable::Variable;
 use crate::core::variable_ordering::VariableOrdering;
 use crate::core::variables_container::{get_variable, get_variable_mut, VariablesContainer};
-use nalgebra::{DVector, DVectorView};
+use nalgebra::{DMatrix, DVector, DVectorView};
 
 use std::cell::RefCell;
 
@@ -22,8 +23,9 @@ where
     // pub(crate) container: C,
     pub container: C,
     local: RefCell<DVector<R>>,
+    jacobians: RefCell<Vec<DMatrix<R>>>,
 }
-
+#[allow(non_snake_case)]
 impl<C, R> Variables<C, R>
 where
     C: VariablesContainer<R>,
@@ -33,6 +35,7 @@ where
         Variables::<C, R> {
             container,
             local: RefCell::new(DVector::<R>::zeros(1)),
+            jacobians: RefCell::new(Vec::new()),
         }
     }
     /// Creates new Variables from subset of `variables` with `keys`.
@@ -96,6 +99,35 @@ where
         debug_assert_eq!(delta.nrows(), d);
         *self.local.borrow_mut() = delta;
         self.local.borrow()
+    }
+    /// Returns jacobian of local(tangent) of variable perturbation
+    /// with respect of perturbation delta. See [Variable::retract_local_jacobian].
+    pub fn retract_local_jacobian<VC>(
+        &self,
+        linearization_point: &Variables<VC, R>,
+        variable_ordering: &VariableOrdering,
+    ) -> JacobiansReturn<R>
+    where
+        VC: VariablesContainer<R>,
+    {
+        let mut jacobians = Vec::<DMatrix<R>>::with_capacity(variable_ordering.len());
+        for i in 0..variable_ordering.len() {
+            let key = variable_ordering.key(i).unwrap();
+            let dim = linearization_point.dim_at(key).unwrap();
+            jacobians.push(DMatrix::zeros(dim, dim));
+        }
+        for i in 0..variable_ordering.len() {
+            let key = variable_ordering.key(i).unwrap();
+            // let dim = linearization_point.dim_at(key).unwrap();
+            let found = self.container.retract_local_jacobian(
+                linearization_point,
+                jacobians[i].as_view_mut(),
+                key,
+            );
+            assert!(found, "variable with key {:?} not found", key);
+        }
+        *self.jacobians.borrow_mut() = jacobians;
+        self.jacobians.borrow()
     }
 
     pub fn default_variable_ordering(&self) -> VariableOrdering {

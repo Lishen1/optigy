@@ -663,13 +663,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let opt_params = <OptParams<_, _, _>>::builder().build();
             factor_graph.optimize(opt_params)
         };
-        if poses_keys.len() > 3 {
-            // return Ok(());
-        }
-        // if step == 40 {
-        //     loop {
-        //         thread::sleep(time::Duration::from_millis(20));
-        //     }
+        // if poses_keys.len() > 3 {
+        //     return Ok(());
+        // }
+        // if step == 6 {
+        //     return Ok(());
         // }
 
         if poses_keys.len() >= win_size {

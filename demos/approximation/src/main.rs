@@ -21,7 +21,7 @@ use optigy::prelude::ErrorReturn;
 use optigy::prelude::Factors;
 use optigy::prelude::FactorsContainer;
 
-use optigy::prelude::JacobiansReturn;
+use optigy::prelude::JacobianReturn;
 use optigy::prelude::LevenbergMarquardtOptimizer;
 use optigy::prelude::LevenbergMarquardtOptimizerParams;
 use optigy::prelude::NonlinearOptimizer;
@@ -83,7 +83,7 @@ where
         self.error.borrow()
     }
 
-    fn jacobians<C>(&self, _variables: &Variables<C, R>) -> JacobiansReturn<R>
+    fn jacobians<C>(&self, _variables: &Variables<C, R>) -> JacobianReturn<R>
     where
         C: VariablesContainer<R>,
     {

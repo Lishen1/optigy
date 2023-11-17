@@ -9,21 +9,22 @@ use nalgebra::DVector;
 
 use super::variables_container::VariablesContainer;
 use super::Real;
-pub type JacobiansReturn<'a, R> = Ref<'a, DMatrix<R>>;
+pub type JacobianReturn<'a, R> = Ref<'a, DMatrix<R>>;
+pub type JacobiansReturn<'a, R> = Ref<'a, Vec<DMatrix<R>>>;
 pub type ErrorReturn<'a, R> = Ref<'a, DVector<R>>;
 pub type Jacobians<R> = DMatrix<R>;
 pub struct JacobiansErrorReturn<'a, R>
 where
     R: Real,
 {
-    pub jacobians: JacobiansReturn<'a, R>,
+    pub jacobians: JacobianReturn<'a, R>,
     pub error: ErrorReturn<'a, R>,
 }
 impl<'a, R> JacobiansErrorReturn<'a, R>
 where
     R: Real,
 {
-    fn new(jacobians: JacobiansReturn<'a, R>, error: ErrorReturn<'a, R>) -> Self {
+    fn new(jacobians: JacobianReturn<'a, R>, error: ErrorReturn<'a, R>) -> Self {
         JacobiansErrorReturn { jacobians, error }
     }
 }
@@ -39,7 +40,7 @@ where
     where
         C: VariablesContainer<R>;
     /// Returns jacobians $\frac{\partial f_i(\textbf{x})}{\partial \textbf{x}_{keys}} \big|_x$
-    fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobiansReturn<R>
+    fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobianReturn<R>
     where
         C: VariablesContainer<R>;
     /// Returns pair of jacobians with factor function value.
@@ -104,7 +105,7 @@ pub fn compute_numerical_jacobians<V, F, R>(
 }
 #[cfg(test)]
 pub(crate) mod tests {
-    use super::{ErrorReturn, Factor, Jacobians, JacobiansReturn};
+    use super::{ErrorReturn, Factor, JacobianReturn, Jacobians};
     use crate::core::{
         key::Vkey,
         loss_function::GaussianLoss,
@@ -162,7 +163,7 @@ pub(crate) mod tests {
             self.error.borrow()
         }
 
-        fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobiansReturn<R>
+        fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobianReturn<R>
         where
             C: VariablesContainer<R>,
         {
@@ -234,7 +235,7 @@ pub(crate) mod tests {
             }
             self.error.borrow()
         }
-        fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobiansReturn<R>
+        fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobianReturn<R>
         where
             C: VariablesContainer<R>,
         {
@@ -304,7 +305,7 @@ pub(crate) mod tests {
             self.error.borrow()
         }
 
-        fn jacobians<C>(&self, _variables: &Variables<C, R>) -> JacobiansReturn<R>
+        fn jacobians<C>(&self, _variables: &Variables<C, R>) -> JacobianReturn<R>
         where
             C: VariablesContainer<R>,
         {

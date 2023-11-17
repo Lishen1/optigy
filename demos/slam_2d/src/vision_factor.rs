@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use nalgebra::{matrix, vector, DMatrix, DMatrixView, DVector, Matrix2, Vector2};
 use num::Float;
 use optigy::prelude::{
-    ErrorReturn, Factor, GaussianLoss, JacobiansReturn, Real, Variables, VariablesContainer, Vkey,
+    ErrorReturn, Factor, GaussianLoss, JacobianReturn, Real, Variables, VariablesContainer, Vkey,
 };
 
 use crate::E2;
@@ -77,7 +77,7 @@ where
         self.error.borrow()
     }
 
-    fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobiansReturn<R>
+    fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobianReturn<R>
     where
         C: VariablesContainer<R>,
     {

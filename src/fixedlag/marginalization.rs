@@ -8,7 +8,7 @@ use num::Float;
 
 use crate::{
     core::{
-        factor::{compute_numerical_jacobians, ErrorReturn, Factor, JacobiansReturn},
+        factor::{compute_numerical_jacobians, ErrorReturn, Factor, JacobianReturn},
         factors::Factors,
         factors_container::FactorsContainer,
         key::Vkey,
@@ -80,12 +80,30 @@ where
         self.error.borrow()
     }
     #[allow(non_snake_case)]
-    fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobiansReturn<R>
+    fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobianReturn<R>
     where
         C: VariablesContainer<R>,
     {
+        // compute_numerical_jacobians(variables, self, &mut self.jacobians.borrow_mut());
         // println!("J0: {}", self.jacobians.borrow());
-        compute_numerical_jacobians(variables, self, &mut self.jacobians.borrow_mut());
+        let jacobians = variables.retract_local_jacobian(&self.linearization_point, &self.ordering);
+        let mut vars_jacobian = DMatrix::<R>::zeros(
+            self.linearization_point.dim(),
+            self.linearization_point.dim(),
+        );
+        let mut offset = 0usize;
+        for i in 0..jacobians.len() {
+            let key = self.ordering.key(i).unwrap();
+            let dim = self.linearization_point.dim_at(key).unwrap();
+            vars_jacobian
+                .view_mut((offset, offset), (dim, dim))
+                .copy_from(&jacobians[i]);
+            offset += dim;
+        }
+        // println!("J {}", vars_jacobian);
+        debug_assert_eq!(vars_jacobian.nrows(), self.linearization_point.dim());
+        let j = self.A_prior.clone() * vars_jacobian.clone();
+        *self.jacobians.borrow_mut() = j;
         // println!("J1: {}", self.jacobians.borrow());
         self.jacobians.borrow()
     }

@@ -61,6 +61,14 @@ where
     ) -> usize
     where
         C: VariablesContainer<R>;
+    fn retract_local_jacobian<C>(
+        &self,
+        linearization_point: &Variables<C, R>,
+        jacobian: DMatrixViewMut<R>,
+        key: Vkey,
+    ) -> bool
+    where
+        C: VariablesContainer<R>;
     fn dim_at(&self, key: Vkey) -> Option<usize>;
     fn compute_jacobian_for<F, C>(
         &self,
@@ -123,6 +131,17 @@ where
         C: VariablesContainer<R>,
     {
         offset
+    }
+    fn retract_local_jacobian<C>(
+        &self,
+        linearization_point: &Variables<C, R>,
+        jacobian: DMatrixViewMut<R>,
+        key: Vkey,
+    ) -> bool
+    where
+        C: VariablesContainer<R>,
+    {
+        false
     }
     fn dim_at(&self, _key: Vkey) -> Option<usize> {
         None
@@ -286,6 +305,29 @@ where
             }
 
             None => self.parent.local(variables, delta, key, offset),
+        }
+    }
+    fn retract_local_jacobian<C>(
+        &self,
+        linearization_point: &Variables<C, R>,
+        mut jacobian: DMatrixViewMut<R>,
+        key: Vkey,
+    ) -> bool
+    where
+        C: VariablesContainer<R>,
+    {
+        let var_this = self.data.get(&key);
+        match var_this {
+            Some(var_this) => {
+                let var = linearization_point.get::<T::Value>(key).unwrap();
+                // let vd = var.dim();
+                jacobian.copy_from(&var_this.retract_local_jacobian(var));
+                true
+            }
+
+            None => self
+                .parent
+                .retract_local_jacobian(linearization_point, jacobian, key),
         }
     }
     fn dim_at(&self, key: Vkey) -> Option<usize> {

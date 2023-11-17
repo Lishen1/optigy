@@ -1,6 +1,8 @@
 use std::cell::Ref;
 
 use nalgebra::{DVector, DVectorView, RealField};
+
+use crate::prelude::JacobianReturn;
 /// Represent variable $\textbf{x}_i$ of factor graph.
 pub type TangentReturn<'a, R> = Ref<'a, DVector<R>>;
 pub trait Variable<R>: Clone
@@ -9,25 +11,24 @@ where
 {
     /// Returns local tangent such: $\textbf{x}_i \boxminus \breve{\textbf{x}}_i$
     /// where $\breve{\textbf{x}}_i$ is linearization point in case of marginalization.
-    fn local(&self, linearization_point: &Self) -> TangentReturn<R>
-    where
-        R: RealField;
+    fn local(&self, linearization_point: &Self) -> TangentReturn<R>;
+
     /// Retract (perturbate) $\textbf{x}_i$ by `delta` such:
     /// $\textbf{x}_i=\textbf{x}_i \boxplus \delta \textbf{x}_i$
-    fn retract(&mut self, delta: DVectorView<R>)
-    where
-        R: RealField;
+    fn retract(&mut self, delta: DVectorView<R>);
+
     /// Returns retracted copy of `self`.
-    fn retracted(&self, delta: DVectorView<R>) -> Self
-    where
-        R: RealField,
-    {
+    fn retracted(&self, delta: DVectorView<R>) -> Self {
         let mut var = self.clone();
         var.retract(delta);
         var
     }
     /// Returns dimension $D$ of $\delta{\textbf{x}_i} \in \mathbb{R}^D$
     fn dim(&self) -> usize;
+    /// Returns jacobian of local(tangent) of variable perturbation
+    /// with respect of perturbation delta:
+    /// $$\frac{\partial (\textbf{x}_i \boxplus \delta) \boxminus \breve{\textbf{x}}_i}{\partial \delta} \Big|_x$$
+    fn retract_local_jacobian(&self, linearization_point: &Self) -> JacobianReturn<R>;
 }
 #[cfg(test)]
 pub(crate) mod tests {
