@@ -4,7 +4,7 @@ use crate::core::variables::Variables;
 use core::marker::PhantomData;
 
 use super::{
-    factor::{ErrorReturn, Factor, JacobiansErrorReturn},
+    factor::Factor,
     factors_container::{
         get_factor, get_factor_mut, get_factor_vec, get_factor_vec_mut, FactorsContainer,
     },
@@ -87,7 +87,7 @@ where
         VC: VariablesContainer<R>,
     {
         self.container
-            .weight_jacobians_error_in_place_at(variables, error, jacobians, index, 0)
+            .weight_jacobian_error_in_place_at(variables, error, jacobians, index, 0)
     }
     /// Performs weighting (whitening transformation) of error vector matrix
     /// of factor with index.
@@ -102,36 +102,46 @@ where
         self.container
             .weight_error_in_place_at(variables, error, index, 0)
     }
-    /// Performs weighting (whitening transformation) of jacobians matrix
+    /// Computes jacobian and error of factor with index
     /// of factor with index.
-    pub fn jacobians_error_at<VC>(
+    pub fn jacobian_error_at<VC>(
         &self,
         variables: &Variables<VC, R>,
+        jacobian: DMatrixViewMut<R>,
+        error: DVectorViewMut<R>,
         index: usize,
-    ) -> Option<JacobiansErrorReturn<'_, R>>
+    ) -> bool
     where
         VC: VariablesContainer<R>,
     {
-        self.container.jacobians_error_at(variables, index, 0)
+        self.container
+            .jacobian_error_at(variables, jacobian, error, index, 0)
     }
-    /// Returns weighted jacobian matrix and error vector of factor with index.
-    /// NOTE: probably weighted word here wrong.
-    pub fn weighted_jacobians_error_at<VC>(
-        &self,
-        variables: &Variables<VC, R>,
-        index: usize,
-    ) -> Option<JacobiansErrorReturn<'_, R>>
-    where
-        VC: VariablesContainer<R>,
-    {
-        self.container.jacobians_error_at(variables, index, 0)
-    }
+
+    // /// Returns weighted jacobian matrix and error vector of factor with index.
+    // /// NOTE: probably weighted word here wrong.
+    // pub fn weighted_jacobians_error_at<VC>(
+    //     &self,
+    //     variables: &Variables<VC, R>,
+    //     index: usize,
+    // ) -> Option<JacobiansErrorReturn<'_, R>>
+    // where
+    //     VC: VariablesContainer<R>,
+    // {
+    //     self.container.jacobians_error_at(variables, index, 0)
+    // }
+
     /// Returns error vector of factor with index.
-    pub fn error_at<VC>(&self, variables: &Variables<VC, R>, index: usize) -> Option<ErrorReturn<R>>
+    pub fn error_at<VC>(
+        &self,
+        variables: &Variables<VC, R>,
+        error: DVectorViewMut<R>,
+        index: usize,
+    ) -> bool
     where
         VC: VariablesContainer<R>,
     {
-        self.container.error_at(variables, index, 0)
+        self.container.error_at(variables, error, index, 0)
     }
     pub fn error<VC>(&self, _variables: &Variables<VC, R>) -> DVector<R>
     where
@@ -147,10 +157,8 @@ where
     {
         let mut err_squared_norm: R = R::zero();
         for f_index in 0..self.len() {
-            // let werr = self.weighted_error_at(variables, f_index).unwrap();
-            let error = self.error_at(variables, f_index).unwrap();
-            let mut error = error.to_owned();
-            //TODO: do optimal. copy not needed without loss
+            let mut error = DVector::<R>::zeros(self.dim_at(f_index).unwrap());
+            assert!(self.error_at(variables, error.as_view_mut(), f_index));
             self.weight_error_in_place_at(variables, error.as_view_mut(), f_index);
             err_squared_norm += error.norm_squared();
         }
@@ -341,12 +349,9 @@ mod tests {
         let mut variables = Variables::new(container);
         variables.add(Vkey(0), VariableA::<Real>::new(0.0));
         variables.add(Vkey(1), VariableB::<Real>::new(0.0));
-        assert_eq!(
-            FactorA::new(1.0, None, Vkey(0), Vkey(1))
-                .error(&variables)
-                .norm_squared(),
-            3.0
-        );
+        let mut error = DVector::<Real>::zeros(3);
+        FactorA::new(1.0, None, Vkey(0), Vkey(1)).error(&variables, error.as_view_mut());
+        assert_eq!(error.norm_squared(), 3.0);
         assert_eq!(factors.error_squared_norm(&variables), 7.5);
     }
     #[test]

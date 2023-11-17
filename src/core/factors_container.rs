@@ -4,7 +4,6 @@ use core::any::TypeId;
 use core::mem;
 use nalgebra::{DMatrixViewMut, DVectorViewMut};
 
-use super::factor::{ErrorReturn, JacobiansErrorReturn};
 use super::factors::Factors;
 use super::key::Vkey;
 use super::loss_function::LossFunction;
@@ -55,16 +54,18 @@ where
     /// factor keys by index
     fn keys_at(&self, index: usize, init: usize) -> Option<&[Vkey]>;
     /// factor jacobians error by index
-    fn jacobians_error_at<C>(
+    fn jacobian_error_at<C>(
         &self,
         variables: &Variables<C, R>,
+        jacobian: DMatrixViewMut<R>,
+        error: DVectorViewMut<R>,
         index: usize,
         init: usize,
-    ) -> Option<JacobiansErrorReturn<'_, R>>
+    ) -> bool
     where
         C: VariablesContainer<R>;
     /// weight factor error and jacobians in-place
-    fn weight_jacobians_error_in_place_at<C>(
+    fn weight_jacobian_error_in_place_at<C>(
         &self,
         variables: &Variables<C, R>,
         error: DVectorViewMut<R>,
@@ -86,9 +87,14 @@ where
     fn error_at<C>(
         &self,
         variables: &Variables<C, R>,
+        error: DVectorViewMut<R>,
         index: usize,
         init: usize,
-    ) -> Option<ErrorReturn<R>>
+    ) -> bool
+    where
+        C: VariablesContainer<R>;
+    /// Returns `true` if factor with index has custom loss
+    fn has_loss_at<C>(&self, variables: &Variables<C, R>, index: usize, init: usize) -> bool
     where
         C: VariablesContainer<R>;
     /// factor type name used for debugging
@@ -147,18 +153,20 @@ where
         None
     }
 
-    fn jacobians_error_at<C>(
+    fn jacobian_error_at<C>(
         &self,
         _variables: &Variables<C, R>,
+        _jacobian: DMatrixViewMut<R>,
+        _error: DVectorViewMut<R>,
         _index: usize,
         _init: usize,
-    ) -> Option<JacobiansErrorReturn<'_, R>>
+    ) -> bool
     where
         C: VariablesContainer<R>,
     {
-        None
+        false
     }
-    fn weight_jacobians_error_in_place_at<C>(
+    fn weight_jacobian_error_in_place_at<C>(
         &self,
         _variables: &Variables<C, R>,
         _error: DVectorViewMut<R>,
@@ -182,13 +190,14 @@ where
     fn error_at<C>(
         &self,
         _variables: &Variables<C, R>,
+        _error: DVectorViewMut<R>,
         _index: usize,
         _init: usize,
-    ) -> Option<ErrorReturn<R>>
+    ) -> bool
     where
         C: VariablesContainer<R>,
     {
-        None
+        false
     }
 
     fn type_name_at(&self, _index: usize, _init: usize) -> Option<String> {
@@ -212,6 +221,13 @@ where
     ) where
         C: FactorsContainer<R>,
     {
+    }
+
+    fn has_loss_at<C>(&self, _variables: &Variables<C, R>, _index: usize, _init: usize) -> bool
+    where
+        C: VariablesContainer<R>,
+    {
+        false
     }
 }
 
@@ -291,23 +307,26 @@ where
             self.parent.keys_at(index, init + self.data.len())
         }
     }
-    fn jacobians_error_at<C>(
+    fn jacobian_error_at<C>(
         &self,
         variables: &Variables<C, R>,
+        jacobian: DMatrixViewMut<R>,
+        error: DVectorViewMut<R>,
         index: usize,
         init: usize,
-    ) -> Option<JacobiansErrorReturn<'_, R>>
+    ) -> bool
     where
         C: VariablesContainer<R>,
     {
         if (init..(init + self.data.len())).contains(&index) {
-            Some(self.data[index - init].jacobians_error(variables))
+            self.data[index - init].jacobian_error(variables, jacobian, error);
+            true
         } else {
             self.parent
-                .jacobians_error_at(variables, index, init + self.data.len())
+                .jacobian_error_at(variables, jacobian, error, index, init + self.data.len())
         }
     }
-    fn weight_jacobians_error_in_place_at<C>(
+    fn weight_jacobian_error_in_place_at<C>(
         &self,
         variables: &Variables<C, R>,
         error: DVectorViewMut<R>,
@@ -323,7 +342,7 @@ where
                 loss.weight_jacobians_error_in_place(error, jacobians);
             }
         } else {
-            self.parent.weight_jacobians_error_in_place_at(
+            self.parent.weight_jacobian_error_in_place_at(
                 variables,
                 error,
                 jacobians,
@@ -354,17 +373,31 @@ where
     fn error_at<C>(
         &self,
         variables: &Variables<C, R>,
+        error: DVectorViewMut<R>,
         index: usize,
         init: usize,
-    ) -> Option<ErrorReturn<R>>
+    ) -> bool
     where
         C: VariablesContainer<R>,
     {
         if (init..(init + self.data.len())).contains(&index) {
-            Some(self.data[index - init].error(variables))
+            self.data[index - init].error(variables, error);
+            true
         } else {
             self.parent
-                .error_at(variables, index, init + self.data.len())
+                .error_at(variables, error, index, init + self.data.len())
+        }
+    }
+
+    fn has_loss_at<C>(&self, variables: &Variables<C, R>, index: usize, init: usize) -> bool
+    where
+        C: VariablesContainer<R>,
+    {
+        if (init..(init + self.data.len())).contains(&index) {
+            self.data[index - init].loss_function().is_some()
+        } else {
+            self.parent
+                .has_loss_at(variables, index, init + self.data.len())
         }
     }
 
@@ -493,8 +526,6 @@ where
 }
 #[cfg(test)]
 pub(crate) mod tests {
-
-    use std::ops::Deref;
 
     use nalgebra::{DMatrix, DVector};
 
@@ -658,7 +689,7 @@ pub(crate) mod tests {
         assert!(container.keys_at(5, 0).is_none());
     }
     #[test]
-    fn jacobians_at() {
+    fn jacobian_at() {
         type Real = f64;
 
         let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
@@ -679,32 +710,47 @@ pub(crate) mod tests {
         let mut jacobians = DMatrix::<Real>::zeros(3, 3 * 2);
         jacobians.column_mut(0).fill(1.0);
         jacobians.column_mut(4).fill(2.0);
-        assert_eq!(
-            container
-                .jacobians_error_at(&variables, 0, 0)
-                .unwrap()
-                .jacobians
-                .deref(),
-            &jacobians
-        );
-        assert_eq!(
-            container
-                .jacobians_error_at(&variables, 1, 0)
-                .unwrap()
-                .jacobians
-                .deref(),
-            &jacobians
-        );
-        assert_eq!(
-            container
-                .jacobians_error_at(&variables, 2, 0)
-                .unwrap()
-                .jacobians
-                .deref(),
-            &jacobians
-        );
-        assert!(container.jacobians_error_at(&variables, 4, 0).is_none());
-        assert!(container.jacobians_error_at(&variables, 5, 0).is_none());
+
+        let mut comp_error = DVector::<Real>::zeros(3);
+        let mut comp_jacobians = DMatrix::<Real>::zeros(3, 3 * 2);
+        assert!(container.jacobian_error_at(
+            &variables,
+            comp_jacobians.as_view_mut(),
+            comp_error.as_view_mut(),
+            0,
+            0
+        ));
+        assert_eq!(comp_jacobians, jacobians);
+        assert!(container.jacobian_error_at(
+            &variables,
+            comp_jacobians.as_view_mut(),
+            comp_error.as_view_mut(),
+            1,
+            0
+        ));
+        assert_eq!(comp_jacobians, jacobians);
+        assert!(container.jacobian_error_at(
+            &variables,
+            comp_jacobians.as_view_mut(),
+            comp_error.as_view_mut(),
+            2,
+            0
+        ));
+        assert_eq!(comp_jacobians, jacobians);
+        assert!(!container.jacobian_error_at(
+            &variables,
+            comp_jacobians.as_view_mut(),
+            comp_error.as_view_mut(),
+            4,
+            0
+        ));
+        assert!(!container.jacobian_error_at(
+            &variables,
+            comp_jacobians.as_view_mut(),
+            comp_error.as_view_mut(),
+            5,
+            0
+        ));
     }
     #[test]
     fn weighted_error_at() {

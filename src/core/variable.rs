@@ -1,17 +1,12 @@
-use std::cell::Ref;
-
-use nalgebra::{DVector, DVectorView, RealField};
-
-use crate::prelude::JacobianReturn;
+use nalgebra::{DMatrixViewMut, DVectorView, DVectorViewMut, RealField};
 /// Represent variable $\textbf{x}_i$ of factor graph.
-pub type TangentReturn<'a, R> = Ref<'a, DVector<R>>;
 pub trait Variable<R>: Clone
 where
     R: RealField,
 {
-    /// Returns local tangent such: $\textbf{x}_i \boxminus \breve{\textbf{x}}_i$
+    /// Computes local tangent such: $\textbf{x}_i \boxminus \breve{\textbf{x}}_i$
     /// where $\breve{\textbf{x}}_i$ is linearization point in case of marginalization.
-    fn local(&self, linearization_point: &Self) -> TangentReturn<R>;
+    fn local(&self, linearization_point: &Self, tangent: DVectorViewMut<R>);
 
     /// Retract (perturbate) $\textbf{x}_i$ by `delta` such:
     /// $\textbf{x}_i=\textbf{x}_i \boxplus \delta \textbf{x}_i$
@@ -25,17 +20,15 @@ where
     }
     /// Returns dimension $D$ of $\delta{\textbf{x}_i} \in \mathbb{R}^D$
     fn dim(&self) -> usize;
-    /// Returns jacobian of local(tangent) of variable perturbation
+    /// Computes jacobian of local(tangent) of variable perturbation
     /// with respect of perturbation delta:
     /// $$\frac{\partial (\textbf{x}_i \boxplus \delta) \boxminus \breve{\textbf{x}}_i}{\partial \delta} \Big|_x$$
-    fn retract_local_jacobian(&self, linearization_point: &Self) -> JacobianReturn<R>;
+    fn retract_local_jacobian(&self, linearization_point: &Self, jacobian: DMatrixViewMut<R>);
 }
 #[cfg(test)]
 pub(crate) mod tests {
-    use std::cell::RefCell;
 
-    use nalgebra::DMatrix;
-
+    use nalgebra::DVector;
     use rand::Rng;
 
     use super::*;
@@ -46,20 +39,17 @@ pub(crate) mod tests {
         R: RealField,
     {
         pub val: DVector<R>,
-        local: RefCell<DVector<R>>,
-        jac: RefCell<DMatrix<R>>,
     }
 
     impl<R> Variable<R> for VariableA<R>
     where
         R: RealField,
     {
-        fn local(&self, value: &Self) -> TangentReturn<R>
+        fn local(&self, value: &Self, mut tangent: DVectorViewMut<R>)
         where
             R: RealField,
         {
-            *self.local.borrow_mut() = self.val.clone() - value.val.clone();
-            self.local.borrow()
+            tangent.copy_from(&(self.val.clone() - value.val.clone()));
         }
 
         fn retract(&mut self, delta: DVectorView<R>)
@@ -73,8 +63,12 @@ pub(crate) mod tests {
             3
         }
 
-        fn retract_local_jacobian(&self, _linearization_point: &Self) -> JacobianReturn<R> {
-            self.jac.borrow()
+        fn retract_local_jacobian(
+            &self,
+            _linearization_point: &Self,
+            mut jacobian: DMatrixViewMut<R>,
+        ) {
+            jacobian.fill_with_identity();
         }
     }
     #[derive(Debug, Clone)]
@@ -83,20 +77,17 @@ pub(crate) mod tests {
         R: RealField,
     {
         pub val: DVector<R>,
-        local: RefCell<DVector<R>>,
-        jac: RefCell<DMatrix<R>>,
     }
 
     impl<R> Variable<R> for VariableB<R>
     where
         R: RealField,
     {
-        fn local(&self, value: &Self) -> TangentReturn<R>
+        fn local(&self, value: &Self, mut tangent: DVectorViewMut<R>)
         where
             R: RealField,
         {
-            *self.local.borrow_mut() = self.val.clone() - value.val.clone();
-            self.local.borrow()
+            tangent.copy_from(&(self.val.clone() - value.val.clone()));
         }
 
         fn retract(&mut self, delta: DVectorView<R>)
@@ -110,8 +101,12 @@ pub(crate) mod tests {
             3
         }
 
-        fn retract_local_jacobian(&self, _linearization_point: &Self) -> JacobianReturn<R> {
-            self.jac.borrow()
+        fn retract_local_jacobian(
+            &self,
+            _linearization_point: &Self,
+            mut jacobian: DMatrixViewMut<R>,
+        ) {
+            jacobian.fill_with_identity();
         }
     }
 
@@ -122,8 +117,6 @@ pub(crate) mod tests {
         pub fn new(v: R) -> Self {
             VariableA {
                 val: DVector::<R>::from_element(3, v),
-                local: RefCell::new(DVector::<R>::zeros(3)),
-                jac: RefCell::new(DMatrix::identity(3, 3)),
             }
         }
     }
@@ -134,8 +127,6 @@ pub(crate) mod tests {
         pub fn new(v: R) -> Self {
             VariableB {
                 val: DVector::<R>::from_element(3, v),
-                local: RefCell::new(DVector::<R>::zeros(3)),
-                jac: RefCell::new(DMatrix::identity(3, 3)),
             }
         }
     }
@@ -146,20 +137,17 @@ pub(crate) mod tests {
         R: RealField,
     {
         pub val: DVector<R>,
-        local: RefCell<DVector<R>>,
-        jac: RefCell<DMatrix<R>>,
     }
 
     impl<R> Variable<R> for RandomVariable<R>
     where
         R: RealField,
     {
-        fn local(&self, value: &Self) -> TangentReturn<R>
+        fn local(&self, value: &Self, mut tangent: DVectorViewMut<R>)
         where
             R: RealField,
         {
-            *self.local.borrow_mut() = self.val.clone() - value.val.clone();
-            self.local.borrow()
+            tangent.copy_from(&(self.val.clone() - value.val.clone()));
         }
 
         fn retract(&mut self, delta: DVectorView<R>)
@@ -173,8 +161,12 @@ pub(crate) mod tests {
             3
         }
 
-        fn retract_local_jacobian(&self, _linearization_point: &Self) -> JacobianReturn<R> {
-            self.jac.borrow()
+        fn retract_local_jacobian(
+            &self,
+            _linearization_point: &Self,
+            mut jacobian: DMatrixViewMut<R>,
+        ) {
+            jacobian.fill_with_identity();
         }
     }
     impl<R> Default for RandomVariable<R>
@@ -185,8 +177,6 @@ pub(crate) mod tests {
             let mut rng = rand::thread_rng();
             RandomVariable {
                 val: DVector::from_fn(3, |_, _| R::from_f64(rng.gen::<f64>()).unwrap()),
-                local: RefCell::new(DVector::<R>::zeros(3)),
-                jac: RefCell::new(DMatrix::identity(3, 3)),
             }
         }
     }

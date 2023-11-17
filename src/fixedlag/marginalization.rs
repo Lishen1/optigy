@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-
 use nalgebra::{
     DMatrix, DMatrixView, DMatrixViewMut, DVector, DVectorViewMut, PermutationSequence, RawStorage,
     RealField,
@@ -8,15 +6,9 @@ use num::Float;
 
 use crate::{
     core::{
-        factor::{compute_numerical_jacobians, ErrorReturn, Factor, JacobianReturn},
-        factors::Factors,
-        factors_container::FactorsContainer,
-        key::Vkey,
-        loss_function::GaussianLoss,
-        variable_ordering::VariableOrdering,
-        variables::Variables,
-        variables_container::VariablesContainer,
-        Real,
+        factor::Factor, factors::Factors, factors_container::FactorsContainer, key::Vkey,
+        loss_function::GaussianLoss, variable_ordering::VariableOrdering, variables::Variables,
+        variables_container::VariablesContainer, Real,
     },
     nonlinear::{
         linearization::linearzation_jacobian, sparsity_pattern::construct_jacobian_sparsity,
@@ -33,8 +25,6 @@ where
     pub A_prior: DMatrix<R>,
     pub b_prior: DVector<R>,
     linearization_point: Variables<VC, R>,
-    error: RefCell<DVector<R>>,
-    jacobians: RefCell<DMatrix<R>>,
 }
 impl<VC, R> DenseMarginalizationPriorFactor<VC, R>
 where
@@ -48,7 +38,6 @@ where
         linearization_point: Variables<VC, R>,
         keys: &[Vkey],
     ) -> Self {
-        let e_dim = b_prior.len();
         assert_eq!(linearization_point.dim(), A_prior.ncols());
         assert_eq!(A_prior.nrows(), b_prior.len());
         DenseMarginalizationPriorFactor {
@@ -56,8 +45,6 @@ where
             A_prior: A_prior.clone(),
             b_prior,
             linearization_point,
-            error: RefCell::new(DVector::<R>::zeros(e_dim)),
-            jacobians: RefCell::new(A_prior),
         }
     }
 }
@@ -68,25 +55,24 @@ where
 {
     type L = GaussianLoss<R>;
     #[allow(non_snake_case)]
-    fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
+    fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
     where
         C: VariablesContainer<R>,
     {
-        {
-            let dx = variables.local(&self.linearization_point, &self.ordering);
-            let r = self.A_prior.clone() * dx.clone() + self.b_prior.clone();
-            self.error.borrow_mut().copy_from(&r);
-        }
-        self.error.borrow()
+        let mut dx = DVector::<R>::zeros(self.A_prior.ncols());
+        variables.local(&self.linearization_point, dx.as_view_mut(), &self.ordering);
+        let r = self.A_prior.clone() * dx.clone() + self.b_prior.clone();
+        error.copy_from(&r);
     }
     #[allow(non_snake_case)]
-    fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobianReturn<R>
+    fn jacobian<C>(&self, variables: &Variables<C, R>, mut jacobian: DMatrixViewMut<R>)
     where
         C: VariablesContainer<R>,
     {
         // compute_numerical_jacobians(variables, self, &mut self.jacobians.borrow_mut());
         // println!("J0: {}", self.jacobians.borrow());
-        let jacobians = variables.retract_local_jacobian(&self.linearization_point, &self.ordering);
+        let mut jacobians = Vec::<DMatrix<R>>::default();
+        variables.retract_local_jacobian(&self.linearization_point, &mut jacobians, &self.ordering);
         let mut vars_jacobian = DMatrix::<R>::zeros(
             self.linearization_point.dim(),
             self.linearization_point.dim(),
@@ -103,13 +89,12 @@ where
         // println!("J {}", vars_jacobian);
         debug_assert_eq!(vars_jacobian.nrows(), self.linearization_point.dim());
         let j = self.A_prior.clone() * vars_jacobian.clone();
-        *self.jacobians.borrow_mut() = j;
+        jacobian.copy_from(&j);
         // println!("J1: {}", self.jacobians.borrow());
-        self.jacobians.borrow()
     }
 
     fn dim(&self) -> usize {
-        self.error.borrow().len()
+        self.b_prior.len()
     }
 
     fn keys(&self) -> &[Vkey] {

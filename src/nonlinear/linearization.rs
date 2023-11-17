@@ -56,29 +56,26 @@ pub fn linearzation_jacobian<R, VC, FC>(
             jacobian_ncols.push(var_dim);
             local_col += var_dim;
         }
-        // let wht_js_err = factors
-        //     .weighted_jacobians_error_at(variables, f_index)
-        //     .unwrap();
-        // let wht_js = wht_js_err.jacobians.deref();
-        let wht_js_err = factors.jacobians_error_at(variables, f_index).unwrap();
-        let mut error = wht_js_err.error.to_owned();
-        let mut jacobians = wht_js_err.jacobians.to_owned();
-
-        debug_assert_eq!(error.nrows(), f_dim);
-        debug_assert_eq!(jacobians.nrows(), f_dim);
-        // debug_assert_eq!(jacobians.ncols(), local_col);
+        let mut error = DVector::<R>::zeros(f_dim);
+        let mut jacobian = DMatrix::<R>::zeros(f_dim, local_col);
+        assert!(factors.jacobian_error_at(
+            variables,
+            jacobian.as_view_mut(),
+            error.as_view_mut(),
+            f_index
+        ));
 
         //  whiten err and jacobians
         factors.weight_jacobians_error_in_place_at(
             variables,
             error.as_view_mut(),
-            jacobians.as_view_mut(),
+            jacobian.as_view_mut(),
             f_index,
         );
         b.rows_mut(err_row_counter, f_dim).copy_from(&error);
 
         for j_idx in 0..jacobian_col.len() {
-            let jacobian = &jacobians.columns(jacobian_col_local[j_idx], jacobian_ncols[j_idx]);
+            let jacobian = &jacobian.columns(jacobian_col_local[j_idx], jacobian_ncols[j_idx]);
             A.view_mut(
                 (err_row_counter, jacobian_col[j_idx]),
                 (jacobian.nrows(), jacobian.ncols()),
@@ -125,19 +122,19 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
         local_col += var_dim;
     }
 
-    let wht_Js_err = factors.jacobians_error_at(variables, f_index).unwrap();
-    let mut error = wht_Js_err.error.to_owned();
-    let mut jacobians = wht_Js_err.jacobians.to_owned();
-
-    debug_assert_eq!(error.nrows(), f_dim);
-    debug_assert_eq!(jacobians.nrows(), f_dim);
-    debug_assert_eq!(jacobians.ncols(), local_col);
-
+    let mut error = DVector::<R>::zeros(f_dim);
+    let mut jacobian = DMatrix::<R>::zeros(f_dim, local_col);
+    assert!(factors.jacobian_error_at(
+        variables,
+        jacobian.as_view_mut(),
+        error.as_view_mut(),
+        f_index
+    ));
     //  whiten err and jacobians
     factors.weight_jacobians_error_in_place_at(
         variables,
         error.as_view_mut(),
-        jacobians.as_view_mut(),
+        jacobian.as_view_mut(),
         f_index,
     );
     // let jacobians = jacobians;
@@ -157,8 +154,8 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     // let sts = ;
     // stackJtJ.copy_from(&(stackJ.transpose() * stackJ.clone()));
 
-    let stackJtb = jacobians.transpose() * error;
-    let stackJtJ = jacobians.transpose() * jacobians;
+    let stackJtb = jacobian.transpose() * error;
+    let stackJtJ = jacobian.transpose() * jacobian;
     // #ifdef MINISAM_WITH_MULTI_THREADS
     //   mutex_b.lock();
     // #endif

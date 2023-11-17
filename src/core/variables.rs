@@ -1,15 +1,13 @@
-use crate::core::factor::JacobiansReturn;
 use crate::core::key::Vkey;
 use crate::core::variable::Variable;
 use crate::core::variable_ordering::VariableOrdering;
 use crate::core::variables_container::{get_variable, get_variable_mut, VariablesContainer};
-use nalgebra::{DMatrix, DVector, DVectorView};
+use nalgebra::{DMatrix, DVectorView, DVectorViewMut};
 
-use std::cell::RefCell;
+use std::marker::PhantomData;
 
 use super::factors::Factors;
 use super::factors_container::FactorsContainer;
-use super::variable::TangentReturn;
 use super::variables_container::{get_map, get_map_mut};
 use super::{HashMap, Real};
 
@@ -22,8 +20,7 @@ where
 {
     // pub(crate) container: C,
     pub container: C,
-    local: RefCell<DVector<R>>,
-    jacobians: RefCell<Vec<DMatrix<R>>>,
+    __marker: PhantomData<R>,
 }
 #[allow(non_snake_case)]
 impl<C, R> Variables<C, R>
@@ -34,8 +31,7 @@ where
     pub fn new(container: C) -> Self {
         Variables::<C, R> {
             container,
-            local: RefCell::new(DVector::<R>::zeros(1)),
-            jacobians: RefCell::new(Vec::new()),
+            __marker: PhantomData,
         }
     }
     /// Creates new Variables from subset of `variables` with `keys`.
@@ -85,32 +81,32 @@ where
     pub fn local<VC>(
         &self,
         variables: &Variables<VC, R>,
+        mut tangent: DVectorViewMut<R>,
         variable_ordering: &VariableOrdering,
-    ) -> TangentReturn<R>
-    where
+    ) where
         VC: VariablesContainer<R>,
     {
-        let mut delta = DVector::<R>::zeros(variables.dim());
+        debug_assert_eq!(tangent.len(), variables.dim());
         let mut d: usize = 0;
         for i in 0..variable_ordering.len() {
             let key = variable_ordering.key(i).unwrap();
-            d = self.container.local(variables, delta.as_view_mut(), key, d);
+            d = self
+                .container
+                .local(variables, tangent.as_view_mut(), key, d);
         }
-        debug_assert_eq!(delta.nrows(), d);
-        *self.local.borrow_mut() = delta;
-        self.local.borrow()
     }
     /// Returns jacobian of local(tangent) of variable perturbation
     /// with respect of perturbation delta. See [Variable::retract_local_jacobian].
     pub fn retract_local_jacobian<VC>(
         &self,
         linearization_point: &Variables<VC, R>,
+        jacobians: &mut Vec<DMatrix<R>>,
         variable_ordering: &VariableOrdering,
-    ) -> JacobiansReturn<R>
-    where
+    ) where
         VC: VariablesContainer<R>,
     {
-        let mut jacobians = Vec::<DMatrix<R>>::with_capacity(variable_ordering.len());
+        //TODO: pass vector of views?
+        jacobians.clear();
         for i in 0..variable_ordering.len() {
             let key = variable_ordering.key(i).unwrap();
             let dim = linearization_point.dim_at(key).unwrap();
@@ -126,8 +122,6 @@ where
             );
             assert!(found, "variable with key {:?} not found", key);
         }
-        *self.jacobians.borrow_mut() = jacobians;
-        self.jacobians.borrow()
     }
 
     pub fn default_variable_ordering(&self) -> VariableOrdering {
@@ -207,6 +201,7 @@ where
 #[cfg(test)]
 mod tests {
     use matrixcompare::assert_matrix_eq;
+    use nalgebra::DVector;
 
     use crate::core::variable::tests::{VariableA, VariableB};
 
@@ -291,18 +286,19 @@ mod tests {
         assert_eq!(var_1.val, DVector::<Real>::from_element(3, 2.0));
 
         let ordering = variables.default_variable_ordering();
-        let delta = variables.local(&orig_variables, &ordering);
+        let mut tangent = DVector::<Real>::zeros(variables.dim());
+        variables.local(&orig_variables, tangent.as_view_mut(), &ordering);
 
         let dim_0 = variables.get::<VariableA<_>>(Vkey(0)).unwrap().dim();
         let dim_1 = variables.get::<VariableB<_>>(Vkey(1)).unwrap().dim();
 
         assert_matrix_eq!(
             DVector::<Real>::from_element(dim_1, 1.0),
-            delta.rows(ordering.search_key(Vkey(0)).unwrap(), dim_0)
+            tangent.rows(ordering.search_key(Vkey(0)).unwrap(), dim_0)
         );
         assert_matrix_eq!(
             DVector::<Real>::from_element(dim_0, 2.0),
-            delta.rows(ordering.search_key(Vkey(1)).unwrap() * dim_0, dim_1)
+            tangent.rows(ordering.search_key(Vkey(1)).unwrap() * dim_0, dim_1)
         );
     }
 

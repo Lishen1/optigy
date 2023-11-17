@@ -1,10 +1,6 @@
-use std::cell::RefCell;
-
-use nalgebra::{matrix, vector, DMatrix, DMatrixView, DVector, Matrix2, Vector2};
+use nalgebra::{matrix, vector, DMatrixView, DMatrixViewMut, DVectorViewMut, Matrix2, Vector2};
 use num::Float;
-use optigy::prelude::{
-    ErrorReturn, Factor, GaussianLoss, JacobianReturn, Real, Variables, VariablesContainer, Vkey,
-};
+use optigy::prelude::{Factor, GaussianLoss, Real, Variables, VariablesContainer, Vkey};
 
 use crate::E2;
 use slam_common::se2::SE2;
@@ -16,8 +12,6 @@ where
 {
     keys: [Vkey; 2],
     ray: Vector2<R>,
-    error: RefCell<DVector<R>>,
-    jacobians: RefCell<DMatrix<R>>,
     loss: GaussianLoss<R>,
 }
 impl<R> VisionFactor<R>
@@ -30,8 +24,6 @@ where
         VisionFactor {
             keys: [landmark_id, pose_id],
             ray,
-            error: RefCell::new(DVector::<R>::zeros(2)),
-            jacobians: RefCell::new(DMatrix::<R>::identity(2, 5)),
             loss: GaussianLoss::<R>::covariance(cov.as_view()),
         }
     }
@@ -46,7 +38,7 @@ where
 {
     type L = GaussianLoss<R>;
 
-    fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
+    fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
     where
         C: VariablesContainer<R>,
     {
@@ -68,16 +60,12 @@ where
 
         let r = l0.normalize();
 
-        {
-            self.error.borrow_mut().copy_from(&(r - self.ray));
-        }
+        error.copy_from(&(r - self.ray));
 
         // println!("err comp {}", self.error.borrow().norm());
-
-        self.error.borrow()
     }
 
-    fn jacobians<C>(&self, variables: &Variables<C, R>) -> JacobianReturn<R>
+    fn jacobian<C>(&self, variables: &Variables<C, R>, mut jacobian: DMatrixViewMut<R>)
     where
         C: VariablesContainer<R>,
     {
@@ -97,35 +85,22 @@ where
 
         let r = l0.normalize();
         let J_norm = (Matrix2::identity() - r * r.transpose()) / l0.norm();
-        {
-            self.jacobians
-                .borrow_mut()
-                .columns_mut(0, 2)
-                .copy_from(&(J_norm * R_inv));
-        }
-        {
-            self.jacobians
-                .borrow_mut()
-                .columns_mut(2, 2)
-                .copy_from(&(-J_norm));
-        }
-        {
-            let th = R::from_f64(pose_v.origin.log()[2]).unwrap();
-            let x = landmark_v.val[0] - R::from_f64(pose_v.origin.params()[0]).unwrap();
-            let y = landmark_v.val[1] - R::from_f64(pose_v.origin.params()[1]).unwrap();
+        jacobian.columns_mut(0, 2).copy_from(&(J_norm * R_inv));
+        jacobian.columns_mut(2, 2).copy_from(&(-J_norm));
+        let th = R::from_f64(pose_v.origin.log()[2]).unwrap();
+        let x = landmark_v.val[0] - R::from_f64(pose_v.origin.params()[0]).unwrap();
+        let y = landmark_v.val[1] - R::from_f64(pose_v.origin.params()[1]).unwrap();
 
-            self.jacobians.borrow_mut().columns_mut(4, 1).copy_from(
-                &(J_norm
-                    * Vector2::new(
-                        -x * Float::sin(th) + y * Float::cos(th),
-                        -x * Float::cos(th) - y * Float::sin(th),
-                    )),
-            );
-        }
+        jacobian.columns_mut(4, 1).copy_from(
+            &(J_norm
+                * Vector2::new(
+                    -x * Float::sin(th) + y * Float::cos(th),
+                    -x * Float::cos(th) - y * Float::sin(th),
+                )),
+        );
         // println!("an J: {}", self.jacobians.borrow());
         // compute_numerical_jacobians(variables, self, &mut self.jacobians.borrow_mut());
         // println!("num J: {}", self.jacobians.borrow());
-        self.jacobians.borrow()
     }
 
     fn dim(&self) -> usize {

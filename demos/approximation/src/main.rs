@@ -1,11 +1,12 @@
-use core::cell::RefCell;
 use std::fs::File;
 use std::io::Write;
 
 use color_print::cprintln;
 use nalgebra::vector;
 use nalgebra::DMatrixView;
+use nalgebra::DMatrixViewMut;
 use nalgebra::DVectorView;
+use nalgebra::DVectorViewMut;
 
 use nalgebra::Vector2;
 use nalgebra::{DMatrix, DVector};
@@ -17,11 +18,10 @@ use optigy::fixedlag::marginalization::try_invert_symmetric_positive_semidefinit
 use optigy::nonlinear::linearization::linearzation_jacobian;
 use optigy::nonlinear::sparsity_pattern::construct_jacobian_sparsity;
 use optigy::prelude::DiagonalLoss;
-use optigy::prelude::ErrorReturn;
+
 use optigy::prelude::Factors;
 use optigy::prelude::FactorsContainer;
 
-use optigy::prelude::JacobianReturn;
 use optigy::prelude::LevenbergMarquardtOptimizer;
 use optigy::prelude::LevenbergMarquardtOptimizerParams;
 use optigy::prelude::NonlinearOptimizer;
@@ -30,7 +30,7 @@ use optigy::prelude::NonlinearOptimizerVerbosityLevel;
 use optigy::prelude::Real;
 use optigy::prelude::VariableOrdering;
 use optigy::prelude::VariablesContainer;
-use optigy::prelude::{Factor, Jacobians, ScaleLoss, Variables, Vkey};
+use optigy::prelude::{Factor, ScaleLoss, Variables, Vkey};
 use rgb::RGB8;
 use slam_common::between_factor::BetweenFactor;
 use slam_common::se2::SE2;
@@ -42,8 +42,6 @@ struct GPSPositionFactor<R = f64>
 where
     R: Real,
 {
-    pub error: RefCell<DVector<R>>,
-    pub jacobians: RefCell<Jacobians<R>>,
     pub keys: Vec<Vkey>,
     pub pose: Vector2<R>,
     pub loss: DiagonalLoss<R>,
@@ -54,10 +52,7 @@ where
 {
     pub fn new(key: Vkey, pose: Vector2<R>, sigmas: Vector2<R>) -> Self {
         let keys = vec![key];
-        let jacobians = DMatrix::identity(2, 3 * keys.len());
         GPSPositionFactor {
-            error: RefCell::new(DVector::zeros(2)),
-            jacobians: RefCell::new(jacobians),
             keys,
             pose,
             loss: DiagonalLoss::sigmas(&sigmas.as_view()),
@@ -69,25 +64,22 @@ where
     R: Real,
 {
     type L = DiagonalLoss<R>;
-    fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
+    fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
     where
         C: VariablesContainer<R>,
     {
         let v0: &SE2<R> = variables.get(self.keys()[0]).unwrap();
-        {
-            let pose = v0.origin.params();
-            let pose = vector![pose[0], pose[1]];
-            let d = pose.cast::<R>() - self.pose;
-            self.error.borrow_mut().copy_from(&d);
-        }
-        self.error.borrow()
+        let pose = v0.origin.params();
+        let pose = vector![pose[0], pose[1]];
+        let d = pose.cast::<R>() - self.pose;
+        error.copy_from(&d);
     }
 
-    fn jacobians<C>(&self, _variables: &Variables<C, R>) -> JacobianReturn<R>
+    fn jacobian<C>(&self, _variables: &Variables<C, R>, mut jacobian: DMatrixViewMut<R>)
     where
         C: VariablesContainer<R>,
     {
-        self.jacobians.borrow()
+        jacobian.fill_with_identity();
     }
 
     fn dim(&self) -> usize {

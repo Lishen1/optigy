@@ -10,7 +10,7 @@ use optigy::{
         sparsity_pattern::{construct_hessian_sparsity, HessianTriangle},
     },
     prelude::{Variables, Vkey},
-    slam::{between_factor::BetweenFactor, se3::SE2},
+    // slam::{between_factor::BetweenFactor, se3::SE2},
 };
 
 fn lower_hessian_sparsity(c: &mut Criterion) {

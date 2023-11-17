@@ -1,13 +1,12 @@
-use std::cell::RefCell;
+use std::marker::PhantomData;
 
-use nalgebra::{DMatrix, DVector, DVectorView, RealField, SMatrix, Vector2, Vector3};
+use nalgebra::{
+    DMatrixViewMut, DVector, DVectorView, DVectorViewMut, RealField, SMatrix, Vector2, Vector3,
+};
 use num::Float;
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
-use optigy::{
-    core::variable::{TangentReturn, Variable},
-    prelude::JacobianReturn,
-};
+use optigy::core::variable::Variable;
 
 #[derive(Debug, Clone)]
 pub struct SE2<R = f64>
@@ -15,8 +14,7 @@ where
     R: RealField + Float,
 {
     pub origin: Isometry2,
-    local: RefCell<DVector<R>>,
-    jac: RefCell<DMatrix<R>>,
+    __marker: PhantomData<R>,
 }
 
 impl<R> Variable<R> for SE2<R>
@@ -24,7 +22,7 @@ where
     R: RealField + Float,
 {
     // value is linearization point
-    fn local(&self, linearization_point: &Self) -> TangentReturn<R>
+    fn local(&self, linearization_point: &Self, mut tangent: DVectorViewMut<R>)
     where
         R: RealField,
     {
@@ -35,8 +33,7 @@ where
         // let subgroup_tangent = subgroup_params.log();
         // let d = self.pose.clone() - value.pose.clone();
         let l = DVector::<R>::from_column_slice(d.cast::<R>().as_slice());
-        *self.local.borrow_mut() = l;
-        self.local.borrow()
+        tangent.copy_from(&l);
     }
 
     //self is linearization point
@@ -55,10 +52,8 @@ where
         3
     }
 
-    fn retract_local_jacobian(&self, _linearization_pointt: &Self) -> JacobianReturn<R> {
-        let i = DMatrix::<R>::identity(3, 3);
-        *self.jac.borrow_mut() = i;
-        self.jac.borrow()
+    fn retract_local_jacobian(&self, _linearization_point: &Self, mut jacobian: DMatrixViewMut<R>) {
+        jacobian.fill_with_identity();
     }
 }
 impl<R> SE2<R>
@@ -73,8 +68,7 @@ where
                     vec![theta].as_slice(),
                 )),
             ),
-            local: RefCell::new(DVector::<R>::zeros(3)),
-            jac: RefCell::new(DMatrix::<R>::identity(3, 3)),
+            __marker: PhantomData,
         }
     }
 }

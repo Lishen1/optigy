@@ -300,7 +300,7 @@ where
             Some(var_this) => {
                 let var = variables.get::<T::Value>(key).unwrap();
                 let vd = var.dim();
-                delta.rows_mut(offset, vd).copy_from(&var_this.local(var));
+                var_this.local(var, delta.rows_mut(offset, vd));
                 offset + vd
             }
 
@@ -310,7 +310,7 @@ where
     fn retract_local_jacobian<C>(
         &self,
         linearization_point: &Variables<C, R>,
-        mut jacobian: DMatrixViewMut<R>,
+        jacobian: DMatrixViewMut<R>,
         key: Vkey,
     ) -> bool
     where
@@ -321,7 +321,7 @@ where
             Some(var_this) => {
                 let var = linearization_point.get::<T::Value>(key).unwrap();
                 // let vd = var.dim();
-                jacobian.copy_from(&var_this.retract_local_jacobian(var));
+                var_this.retract_local_jacobian(var, jacobian);
                 true
             }
 
@@ -363,7 +363,8 @@ where
                         .get_mut::<T::Value>()
                         .unwrap()
                         .insert(key, var_ret);
-                    let dy0 = factor.error(variables).to_owned();
+                    let mut dy0 = DVector::<R>::zeros(factor.dim());
+                    factor.error(variables, dy0.as_view_mut());
                     dx[i] = -delta;
                     let var_ret = var.retracted(dx.as_view());
                     variables
@@ -371,7 +372,8 @@ where
                         .get_mut::<T::Value>()
                         .unwrap()
                         .insert(key, var_ret);
-                    let dy1 = factor.error(variables).to_owned();
+                    let mut dy1 = DVector::<R>::zeros(factor.dim());
+                    factor.error(variables, dy1.as_view_mut());
                     jacobians
                         .column_mut(i + offset)
                         .copy_from(&((dy0 - dy1) / (R::from_f64(2.0).unwrap() * delta)));

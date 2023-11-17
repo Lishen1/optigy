@@ -44,15 +44,15 @@ use slam_common::se2::SE2;
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// make gif animation
-    #[arg(short, long, action)]
+    #[arg(long, action)]
     do_viz: bool,
-    #[arg(short, long, action)]
+    #[arg(long, action)]
     write_gif: bool,
-    #[arg(short, long, action)]
+    #[arg(long, action)]
     marginalize: bool,
-    #[arg(short, long, action)]
+    #[arg(long, action)]
     use_gps: bool,
-    #[arg(short, long, action)]
+    #[arg(long, action)]
     use_vision: bool,
 }
 fn fmt_f64(num: f64, width: usize, precision: usize, exp_pad: usize) -> String {

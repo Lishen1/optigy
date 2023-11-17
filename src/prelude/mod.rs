@@ -1,6 +1,6 @@
 pub use crate::{
     core::{
-        factor::{ErrorReturn, Factor, JacobianReturn, Jacobians, JacobiansReturn},
+        factor::Factor,
         factors::Factors,
         factors_container::FactorsContainer,
         key::Vkey,

@@ -1,15 +1,13 @@
-use core::cell::RefCell;
-
 use nalgebra::vector;
+use nalgebra::DMatrixViewMut;
+use nalgebra::DVectorViewMut;
 
 use nalgebra::Vector2;
-use nalgebra::{DMatrix, DVector};
 
 use optigy::prelude::{
-    DiagonalLoss, ErrorReturn, Factor, FactorGraph, FactorsContainer, GaussianLoss, JacobianReturn,
-    Jacobians, LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
-    NonlinearOptimizerVerbosityLevel, OptParams, Real, ScaleLoss, Variables, VariablesContainer,
-    Vkey,
+    DiagonalLoss, Factor, FactorGraph, FactorsContainer, GaussianLoss, LevenbergMarquardtOptimizer,
+    LevenbergMarquardtOptimizerParams, NonlinearOptimizerVerbosityLevel, OptParams, Real,
+    ScaleLoss, Variables, VariablesContainer, Vkey,
 };
 
 use slam_common::between_factor::BetweenFactor;
@@ -20,8 +18,6 @@ struct GPSPositionFactor<R = f64>
 where
     R: Real,
 {
-    pub error: RefCell<DVector<R>>,
-    pub jacobians: RefCell<Jacobians<R>>,
     pub keys: Vec<Vkey>,
     pub pose: Vector2<R>,
     pub loss: DiagonalLoss<R>,
@@ -32,10 +28,7 @@ where
 {
     pub fn new(key: Vkey, pose: Vector2<R>, sigmas: Vector2<R>) -> Self {
         let keys = vec![key];
-        let jacobians = DMatrix::identity(2, 3 * keys.len());
         GPSPositionFactor {
-            error: RefCell::new(DVector::zeros(2)),
-            jacobians: RefCell::new(jacobians),
             keys,
             pose,
             loss: DiagonalLoss::sigmas(&sigmas.as_view()),
@@ -47,25 +40,22 @@ where
     R: Real,
 {
     type L = DiagonalLoss<R>;
-    fn error<C>(&self, variables: &Variables<C, R>) -> ErrorReturn<R>
+    fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
     where
         C: VariablesContainer<R>,
     {
         let v0: &SE2<R> = variables.get(self.keys()[0]).unwrap();
-        {
-            let pose = v0.origin.params();
-            let pose = vector![pose[0], pose[1]];
-            let d = pose.cast::<R>() - self.pose;
-            self.error.borrow_mut().copy_from(&d);
-        }
-        self.error.borrow()
+        let pose = v0.origin.params();
+        let pose = vector![pose[0], pose[1]];
+        let d = pose.cast::<R>() - self.pose;
+        error.copy_from(&d);
     }
 
-    fn jacobians<C>(&self, _variables: &Variables<C, R>) -> JacobianReturn<R>
+    fn jacobian<C>(&self, _variables: &Variables<C, R>, mut jacobian: DMatrixViewMut<R>)
     where
         C: VariablesContainer<R>,
     {
-        self.jacobians.borrow()
+        jacobian.fill_with_identity()
     }
 
     fn dim(&self) -> usize {

@@ -27,7 +27,7 @@ cargo run -- --do-viz
 
 ```sh
 cd optigy/demos/slam_2d
-cargo run -- --do-viz
+cargo run --release -- --do-viz --use-gps --use-vision --marginalize
 ````
 ## Build doc
 ```sh
