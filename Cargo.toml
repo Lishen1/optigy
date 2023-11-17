@@ -32,6 +32,7 @@ viz = ["dep:dot_graph", "dep:random_color", "dep:lazy_static", "dep:prisma", "de
 [dev-dependencies]
 matrixcompare = "0.3.0"
 criterion = { version = "0.4", features = ["html_reports"] }
+lazy_static = {version="1.4.0"}
 [[bench]]
 name = "sparsity_pattern"
 harness = false

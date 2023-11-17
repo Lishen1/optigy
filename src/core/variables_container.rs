@@ -134,9 +134,9 @@ where
     }
     fn retract_local_jacobian<C>(
         &self,
-        linearization_point: &Variables<C, R>,
-        jacobian: DMatrixViewMut<R>,
-        key: Vkey,
+        _linearization_point: &Variables<C, R>,
+        _jacobian: DMatrixViewMut<R>,
+        _key: Vkey,
     ) -> bool
     where
         C: VariablesContainer<R>,

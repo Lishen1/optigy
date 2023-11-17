@@ -34,6 +34,8 @@ where
 pub(crate) mod tests {
     use std::cell::RefCell;
 
+    use nalgebra::DMatrix;
+
     use rand::Rng;
 
     use super::*;
@@ -45,6 +47,7 @@ pub(crate) mod tests {
     {
         pub val: DVector<R>,
         local: RefCell<DVector<R>>,
+        jac: RefCell<DMatrix<R>>,
     }
 
     impl<R> Variable<R> for VariableA<R>
@@ -69,6 +72,10 @@ pub(crate) mod tests {
         fn dim(&self) -> usize {
             3
         }
+
+        fn retract_local_jacobian(&self, _linearization_point: &Self) -> JacobianReturn<R> {
+            self.jac.borrow()
+        }
     }
     #[derive(Debug, Clone)]
     pub struct VariableB<R>
@@ -77,6 +84,7 @@ pub(crate) mod tests {
     {
         pub val: DVector<R>,
         local: RefCell<DVector<R>>,
+        jac: RefCell<DMatrix<R>>,
     }
 
     impl<R> Variable<R> for VariableB<R>
@@ -101,6 +109,10 @@ pub(crate) mod tests {
         fn dim(&self) -> usize {
             3
         }
+
+        fn retract_local_jacobian(&self, _linearization_point: &Self) -> JacobianReturn<R> {
+            self.jac.borrow()
+        }
     }
 
     impl<R> VariableA<R>
@@ -111,6 +123,7 @@ pub(crate) mod tests {
             VariableA {
                 val: DVector::<R>::from_element(3, v),
                 local: RefCell::new(DVector::<R>::zeros(3)),
+                jac: RefCell::new(DMatrix::identity(3, 3)),
             }
         }
     }
@@ -122,6 +135,7 @@ pub(crate) mod tests {
             VariableB {
                 val: DVector::<R>::from_element(3, v),
                 local: RefCell::new(DVector::<R>::zeros(3)),
+                jac: RefCell::new(DMatrix::identity(3, 3)),
             }
         }
     }
@@ -133,6 +147,7 @@ pub(crate) mod tests {
     {
         pub val: DVector<R>,
         local: RefCell<DVector<R>>,
+        jac: RefCell<DMatrix<R>>,
     }
 
     impl<R> Variable<R> for RandomVariable<R>
@@ -157,6 +172,10 @@ pub(crate) mod tests {
         fn dim(&self) -> usize {
             3
         }
+
+        fn retract_local_jacobian(&self, _linearization_point: &Self) -> JacobianReturn<R> {
+            self.jac.borrow()
+        }
     }
     impl<R> Default for RandomVariable<R>
     where
@@ -167,6 +186,7 @@ pub(crate) mod tests {
             RandomVariable {
                 val: DVector::from_fn(3, |_, _| R::from_f64(rng.gen::<f64>()).unwrap()),
                 local: RefCell::new(DVector::<R>::zeros(3)),
+                jac: RefCell::new(DMatrix::identity(3, 3)),
             }
         }
     }
