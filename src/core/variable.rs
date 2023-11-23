@@ -1,4 +1,4 @@
-use nalgebra::{DMatrixViewMut, DVectorView, DVectorViewMut, RealField};
+use nalgebra::{DMatrixViewMut, DVector, DVectorView, DVectorViewMut, RealField};
 /// Represent variable $\textbf{x}_i$ of factor graph.
 pub trait Variable<R>: Clone
 where
@@ -23,8 +23,41 @@ where
     /// Computes jacobian of local(tangent) of variable perturbation
     /// with respect of perturbation delta:
     /// $$\frac{\partial (\textbf{x}_i \boxplus \delta) \boxminus \breve{\textbf{x}}_i}{\partial \delta} \Big|_x$$
-    fn retract_local_jacobian(&self, linearization_point: &Self, jacobian: DMatrixViewMut<R>);
+    fn retract_local_jacobian(&self, linearization_point: &Self, jacobian: DMatrixViewMut<R>) {
+        compute_variable_numerical_jacobian(linearization_point, self, jacobian);
+    }
 }
+
+/// Performs numerical differentiation of variable local(retact(dx)).
+pub fn compute_variable_numerical_jacobian<V, R>(
+    linearization_point: &V,
+    variable: &V,
+    mut jacobian: DMatrixViewMut<R>,
+) where
+    V: Variable<R>,
+    R: RealField,
+{
+    //central difference
+    let delta = R::from_f64(1e-9).unwrap();
+    let mut dx = DVector::<R>::zeros(variable.dim());
+    let mut dy0 = DVector::<R>::zeros(variable.dim());
+    let mut dy1 = DVector::<R>::zeros(variable.dim());
+    for i in 0..variable.dim() {
+        dx[i] = delta.clone();
+        variable
+            .retracted(dx.as_view())
+            .local(linearization_point, dy0.as_view_mut());
+        dx[i] = -delta.clone();
+        variable
+            .retracted(dx.as_view())
+            .local(linearization_point, dy1.as_view_mut());
+        jacobian.column_mut(i).copy_from(
+            &((dy0.clone() - dy1.clone()) / (R::from_f64(2.0).unwrap() * delta.clone())),
+        );
+        dx[i] = R::zero();
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
 
@@ -63,13 +96,9 @@ pub(crate) mod tests {
             3
         }
 
-        fn retract_local_jacobian(
-            &self,
-            _linearization_point: &Self,
-            mut jacobian: DMatrixViewMut<R>,
-        ) {
-            jacobian.fill_with_identity();
-        }
+        // fn retract_local_jacobian(&self, linearization_point: &Self, jacobian: DMatrixViewMut<R>) {
+        //     compute_variable_numerical_jacobian(linearization_point, self, jacobian);
+        // }
     }
     #[derive(Debug, Clone)]
     pub struct VariableB<R>

@@ -52,9 +52,9 @@ where
         3
     }
 
-    fn retract_local_jacobian(&self, _linearization_point: &Self, mut jacobian: DMatrixViewMut<R>) {
-        jacobian.fill_with_identity();
-    }
+    // fn retract_local_jacobian(&self, _linearization_point: &Self, mut jacobian: DMatrixViewMut<R>) {
+    //     jacobian.fill_with_identity();
+    // }
 }
 impl<R> SE2<R>
 where

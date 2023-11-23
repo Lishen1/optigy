@@ -63,7 +63,7 @@ where
 pub fn compute_factor_numerical_jacobian<V, F, R>(
     variables: &Variables<V, R>,
     factor: &F,
-    mut jacobians: DMatrixViewMut<R>,
+    mut jacobian: DMatrixViewMut<R>,
 ) where
     V: VariablesContainer<R>,
     F: Factor<R>,
@@ -86,7 +86,7 @@ pub fn compute_factor_numerical_jacobian<V, F, R>(
             &mut factor_variables,
             *key,
             offsets[idx],
-            jacobians.as_view_mut(),
+            jacobian.as_view_mut(),
         );
     }
 }
