@@ -20,7 +20,7 @@ use nalgebra::{
 use num::Float;
 
 use optigy::prelude::{
-    add_dense_marginalize_prior_factor, DiagonalLoss, Factor, FactorGraph, Factors,
+    add_dense_marginalize_prior_factor, DiagonalLoss, ExternVkey, Factor, FactorGraph, Factors,
     FactorsContainer, GaussianLoss, LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
     NonlinearOptimizerVerbosityLevel, OptParams, ScaleLoss, Variables, VariablesContainer, Vkey,
 };
@@ -570,7 +570,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let sx = l.next().unwrap().parse::<f64>()?;
             let sy = l.next().unwrap().parse::<f64>()?;
             let sxy = l.next().unwrap().parse::<f64>()?;
-            let landmark_id = factor_graph.map_key(Vkey(id));
+            let landmark_id = factor_graph.map_extern_to_internal_mut(ExternVkey(id));
             if args.use_vision {
                 landmarks.add_observation(
                     &mut factor_graph,

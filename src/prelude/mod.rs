@@ -3,7 +3,7 @@ pub use crate::{
         factor::Factor,
         factors::Factors,
         factors_container::FactorsContainer,
-        key::Vkey,
+        key::{ExternVkey, Vkey},
         loss_function::{DiagonalLoss, GaussianLoss, LossFunction, ScaleLoss},
         variable::Variable,
         variable_ordering::VariableOrdering,

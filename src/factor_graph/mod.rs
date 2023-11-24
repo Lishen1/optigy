@@ -4,8 +4,8 @@ use crate::{
     core::{HashMap, Real},
     fixedlag::marginalization::marginalize,
     prelude::{
-        Factor, Factors, FactorsContainer, NonlinearOptimizationError, NonlinearOptimizer,
-        OptIterate, Variable, Variables, VariablesContainer, Vkey,
+        ExternVkey, Factor, Factors, FactorsContainer, NonlinearOptimizationError,
+        NonlinearOptimizer, OptIterate, Variable, Variables, VariablesContainer, Vkey,
     },
 };
 /// Representation of optimizable factor graph.
@@ -23,7 +23,8 @@ where
     optimizer: NonlinearOptimizer<O, R>,
     variables_to_marginalize: Vec<Vkey>,
     variables_keys_counter: usize,
-    variables_keys_map: HashMap<Vkey, Vkey>,
+    extern_to_internal: HashMap<ExternVkey, Vkey>,
+    internal_to_extern: HashMap<Vkey, ExternVkey>,
 }
 
 impl<FC, VC, O, R> FactorGraph<FC, VC, O, R>
@@ -42,7 +43,8 @@ where
             optimizer: NonlinearOptimizer::new(optimizer),
             variables_to_marginalize: Vec::default(),
             variables_keys_counter: 0usize,
-            variables_keys_map: HashMap::default(),
+            extern_to_internal: HashMap::default(),
+            internal_to_extern: HashMap::default(),
         }
     }
     /// Returns factors.
@@ -55,18 +57,27 @@ where
     }
     /// Map external unique key into internal one.
     /// Returns corresponded mapped key.
-    pub fn map_key(&mut self, key: Vkey) -> Vkey {
-        if self.variables_keys_map.contains_key(&key) {
-            self.variables_keys_map[&key]
+    pub fn map_extern_to_internal_mut(&mut self, key: ExternVkey) -> Vkey {
+        if self.extern_to_internal.contains_key(&key) {
+            self.extern_to_internal[&key]
         } else {
-            let mapped_key = self.next_variable_key();
-            self.variables_keys_map.insert(key, mapped_key);
-            mapped_key
+            let internal_key = self.next_variable_key();
+            self.extern_to_internal.insert(key, internal_key);
+            self.internal_to_extern.insert(internal_key, key);
+            internal_key
         }
     }
     /// Returns corresponded mapped key.
-    pub fn mapped_key(&self, key: Vkey) -> Option<&Vkey> {
-        self.variables_keys_map.get(&key)
+    pub fn map_extern_to_internal(&self, key: ExternVkey) -> Option<Vkey> {
+        self.extern_to_internal.get(&key).map(|k| k.to_owned())
+    }
+    /// Returns external to internal map
+    pub fn extern_to_internal(&self) -> &HashMap<ExternVkey, Vkey> {
+        &self.extern_to_internal
+    }
+    /// Returns internal to external map
+    pub fn internal_to_extern(&self) -> &HashMap<Vkey, ExternVkey> {
+        &self.internal_to_extern
     }
     /// Add factor.
     pub fn add_factor<F>(&mut self, factor: F)
