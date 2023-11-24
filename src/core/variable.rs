@@ -81,7 +81,7 @@ pub(crate) mod tests {
     #[derive(Debug, Clone)]
     pub struct VariableA<R>
     where
-        R: RealField,
+        R: Real,
     {
         pub val: DVector<R>,
     }
@@ -90,17 +90,11 @@ pub(crate) mod tests {
     where
         R: Real,
     {
-        fn local(&self, value: &Self, mut tangent: DVectorViewMut<R>)
-        where
-            R: RealField,
-        {
+        fn local(&self, value: &Self, mut tangent: DVectorViewMut<R>) {
             tangent.copy_from(&(self.val.clone() - value.val.clone()));
         }
 
-        fn retract(&mut self, delta: DVectorView<R>)
-        where
-            R: RealField,
-        {
+        fn retract(&mut self, delta: DVectorView<R>) {
             self.val = self.val.clone() + delta;
         }
 
@@ -115,7 +109,7 @@ pub(crate) mod tests {
     #[derive(Debug, Clone)]
     pub struct VariableB<R>
     where
-        R: RealField,
+        R: Real,
     {
         pub val: DVector<R>,
     }
@@ -124,17 +118,11 @@ pub(crate) mod tests {
     where
         R: Real,
     {
-        fn local(&self, value: &Self, mut tangent: DVectorViewMut<R>)
-        where
-            R: RealField,
-        {
+        fn local(&self, value: &Self, mut tangent: DVectorViewMut<R>) {
             tangent.copy_from(&(self.val.clone() - value.val.clone()));
         }
 
-        fn retract(&mut self, delta: DVectorView<R>)
-        where
-            R: RealField,
-        {
+        fn retract(&mut self, delta: DVectorView<R>) {
             self.val = self.val.clone() + delta.clone();
         }
 
@@ -153,7 +141,7 @@ pub(crate) mod tests {
 
     impl<R> VariableA<R>
     where
-        R: RealField,
+        R: Real,
     {
         pub fn new(v: R) -> Self {
             VariableA {
@@ -163,7 +151,7 @@ pub(crate) mod tests {
     }
     impl<R> VariableB<R>
     where
-        R: RealField,
+        R: Real,
     {
         pub fn new(v: R) -> Self {
             VariableB {
@@ -175,7 +163,7 @@ pub(crate) mod tests {
     #[derive(Debug, Clone)]
     pub struct RandomVariable<R>
     where
-        R: RealField,
+        R: Real,
     {
         pub val: DVector<R>,
     }
@@ -184,17 +172,11 @@ pub(crate) mod tests {
     where
         R: Real,
     {
-        fn local(&self, value: &Self, mut tangent: DVectorViewMut<R>)
-        where
-            R: RealField,
-        {
+        fn local(&self, value: &Self, mut tangent: DVectorViewMut<R>) {
             tangent.copy_from(&(self.val.clone() - value.val.clone()));
         }
 
-        fn retract(&mut self, delta: DVectorView<R>)
-        where
-            R: RealField,
-        {
+        fn retract(&mut self, delta: DVectorView<R>) {
             self.val = self.val.clone() + delta.clone();
         }
 
@@ -212,7 +194,7 @@ pub(crate) mod tests {
     }
     impl<R> Default for RandomVariable<R>
     where
-        R: RealField,
+        R: Real,
     {
         fn default() -> Self {
             let mut rng = rand::thread_rng();
