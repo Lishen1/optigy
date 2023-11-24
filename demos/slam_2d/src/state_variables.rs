@@ -1,21 +1,21 @@
-use nalgebra::{DMatrixViewMut, DVectorView, DVectorViewMut, RealField, Vector2};
-use optigy::prelude::Variable;
+use nalgebra::{DMatrixViewMut, DVectorView, DVectorViewMut, Vector2};
+use optigy::prelude::{Real, Variable};
 
 #[derive(Debug, Clone)]
 pub struct E2<R = f64>
 where
-    R: RealField,
+    R: Real,
 {
     pub val: Vector2<R>,
 }
 
 impl<R> Variable<R> for E2<R>
 where
-    R: RealField,
+    R: Real,
 {
     fn local(&self, linearization_point: &Self, mut tangent: DVectorViewMut<R>)
     where
-        R: RealField,
+        R: Real,
     {
         let d = self.val.clone() - linearization_point.val.clone();
         tangent.copy_from(&d);
@@ -23,7 +23,7 @@ where
 
     fn retract(&mut self, delta: DVectorView<R>)
     where
-        R: RealField,
+        R: Real,
     {
         self.val = self.val.clone() + delta
     }
@@ -38,7 +38,7 @@ where
 }
 impl<R> E2<R>
 where
-    R: RealField,
+    R: Real,
 {
     pub fn new(x: f64, y: f64) -> Self {
         E2 {

@@ -64,6 +64,7 @@ where
             let key = variable_ordering.key(i).unwrap();
             d = self.container.retract(delta, key, d);
         }
+        self.container.update(&self.clone());
     }
     /// Returns retracted copy of self.
     pub fn retracted(&self, delta: DVectorView<R>, variable_ordering: &VariableOrdering) -> Self {
@@ -74,6 +75,7 @@ where
             let key = variable_ordering.key(i).unwrap();
             d = variables.container.retract(delta, key, d);
         }
+        variables.container.update(&variables.clone());
         variables
     }
 

@@ -1,17 +1,14 @@
 use std::marker::PhantomData;
 
-use nalgebra::{
-    DMatrixViewMut, DVector, DVectorView, DVectorViewMut, RealField, SMatrix, Vector2, Vector3,
-};
-use num::Float;
+use nalgebra::{DVector, DVectorView, DVectorViewMut, SMatrix, Vector2, Vector3};
 use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
 
-use optigy::core::variable::Variable;
+use optigy::{core::variable::Variable, prelude::Real};
 
 #[derive(Debug, Clone)]
 pub struct SE2<R = f64>
 where
-    R: RealField + Float,
+    R: Real,
 {
     pub origin: Isometry2,
     __marker: PhantomData<R>,
@@ -19,12 +16,12 @@ where
 
 impl<R> Variable<R> for SE2<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     // value is linearization point
     fn local(&self, linearization_point: &Self, mut tangent: DVectorViewMut<R>)
     where
-        R: RealField,
+        R: Real,
     {
         // let d = (self.origin.inverse().multiply(&value.origin)).log();
         let d = (linearization_point.origin.inverse().multiply(&self.origin)).log();
@@ -39,7 +36,7 @@ where
     //self is linearization point
     fn retract(&mut self, delta: DVectorView<R>)
     where
-        R: RealField + Float,
+        R: Real,
     {
         self.origin = self.origin.clone().multiply(&Isometry2::exp(&Vector3::new(
             delta[0].to_f64().unwrap(),
@@ -58,7 +55,7 @@ where
 }
 impl<R> SE2<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     pub fn new(x: f64, y: f64, theta: f64) -> Self {
         SE2 {
