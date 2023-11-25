@@ -23,8 +23,8 @@ where
     optimizer: NonlinearOptimizer<O, R>,
     variables_to_marginalize: Vec<Vkey>,
     variables_keys_counter: usize,
-    extern_to_internal: HashMap<ExternVkey, Vkey>,
-    internal_to_extern: HashMap<Vkey, ExternVkey>,
+    external_to_internal: HashMap<ExternVkey, Vkey>,
+    internal_to_external: HashMap<Vkey, ExternVkey>,
 }
 
 impl<FC, VC, O, R> FactorGraph<FC, VC, O, R>
@@ -43,8 +43,8 @@ where
             optimizer: NonlinearOptimizer::new(optimizer),
             variables_to_marginalize: Vec::default(),
             variables_keys_counter: 0usize,
-            extern_to_internal: HashMap::default(),
-            internal_to_extern: HashMap::default(),
+            external_to_internal: HashMap::default(),
+            internal_to_external: HashMap::default(),
         }
     }
     /// Returns factors.
@@ -57,27 +57,27 @@ where
     }
     /// Map external unique key into internal one.
     /// Returns corresponded mapped key.
-    pub fn map_extern_to_internal_mut(&mut self, key: ExternVkey) -> Vkey {
-        if self.extern_to_internal.contains_key(&key) {
-            self.extern_to_internal[&key]
+    pub fn map_external_to_internal_mut(&mut self, key: ExternVkey) -> Vkey {
+        if self.external_to_internal.contains_key(&key) {
+            self.external_to_internal[&key]
         } else {
             let internal_key = self.next_variable_key();
-            self.extern_to_internal.insert(key, internal_key);
-            self.internal_to_extern.insert(internal_key, key);
+            self.external_to_internal.insert(key, internal_key);
+            self.internal_to_external.insert(internal_key, key);
             internal_key
         }
     }
     /// Returns corresponded mapped key.
-    pub fn map_extern_to_internal(&self, key: ExternVkey) -> Option<Vkey> {
-        self.extern_to_internal.get(&key).map(|k| k.to_owned())
+    pub fn map_external_to_internal(&self, key: ExternVkey) -> Option<Vkey> {
+        self.external_to_internal.get(&key).map(|k| k.to_owned())
     }
     /// Returns external to internal map
-    pub fn extern_to_internal(&self) -> &HashMap<ExternVkey, Vkey> {
-        &self.extern_to_internal
+    pub fn external_to_internal(&self) -> &HashMap<ExternVkey, Vkey> {
+        &self.external_to_internal
     }
     /// Returns internal to external map
     pub fn internal_to_extern(&self) -> &HashMap<Vkey, ExternVkey> {
-        &self.internal_to_extern
+        &self.internal_to_external
     }
     /// Add factor.
     pub fn add_factor<F>(&mut self, factor: F)
@@ -102,6 +102,15 @@ where
     {
         self.variables.add(key, variable);
         key
+    }
+    /// Add variable with unique external key.
+    pub fn add_variable_with_external_key<V>(&mut self, key: ExternVkey, variable: V) -> Vkey
+    where
+        V: Variable<R> + 'static,
+    {
+        let external_key = self.map_external_to_internal_mut(key);
+        self.variables.add(external_key, variable);
+        external_key
     }
     /// Returns factor by index.
     pub fn get_factor<F>(&self, index: usize) -> Option<&F>

@@ -570,7 +570,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let sx = l.next().unwrap().parse::<f64>()?;
             let sy = l.next().unwrap().parse::<f64>()?;
             let sxy = l.next().unwrap().parse::<f64>()?;
-            let landmark_id = factor_graph.map_extern_to_internal_mut(ExternVkey(id));
+            let landmark_id = factor_graph.map_external_to_internal_mut(ExternVkey(id));
             if args.use_vision {
                 landmarks.add_observation(
                     &mut factor_graph,
