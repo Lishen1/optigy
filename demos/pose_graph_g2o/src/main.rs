@@ -10,8 +10,8 @@ use optigy::nonlinear::levenberg_marquardt_optimizer::{
     LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
 };
 use optigy::prelude::{
-    Factors, FactorsContainer, GaussianLoss, NonlinearOptimizer, Variables, VariablesContainer,
-    Vkey,
+    Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, NonlinearOptimizer, Variables,
+    VariablesContainer, Vkey,
 };
 use plotters::coord::types::RangedCoordf64;
 use plotters::prelude::*;
@@ -99,8 +99,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let params = LevenbergMarquardtOptimizerParams::default();
     // params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Subiteration;
-    let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::with_params(params));
-    // let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::default());
+    // let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::with_params(params));
+    let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::default());
     let start = Instant::now();
     let opt_res = if args.do_viz {
         let img_w = 1024_i32;

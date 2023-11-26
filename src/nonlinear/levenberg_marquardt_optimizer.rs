@@ -404,8 +404,8 @@ where
         Err(NonlinearOptimizationError::ErrorIncrease)
     }
 
-    fn linear_solver(&self) -> &Self::S {
-        &self.linear_solver
+    fn linear_solver(&mut self) -> &mut Self::S {
+        &mut self.linear_solver
     }
     fn base_params(&self) -> &NonlinearOptimizerParams {
         &self.params.base

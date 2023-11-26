@@ -6,7 +6,6 @@ use crate::core::{
 };
 use hashbrown::HashMap;
 
-
 /// base class for A and A'A sparsity pattern, if variable ordering is fixed,
 /// only need to be constructed once for different linearzation runs
 #[cfg_attr(debug_assertions, derive(Debug))]

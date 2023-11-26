@@ -163,7 +163,7 @@ where
     where
         FC: FactorsContainer<R>,
         VC: VariablesContainer<R>;
-    fn linear_solver(&self) -> &Self::S;
+    fn linear_solver(&mut self) -> &mut Self::S;
     fn base_params(&self) -> &NonlinearOptimizerParams;
     fn reset(&mut self) {}
 }
@@ -333,7 +333,7 @@ where
             if self.iterations == 0 {
                 let start = Instant::now();
                 self.opt.linear_solver().initialize(&A);
-                let _duration = start.elapsed();
+                let duration = start.elapsed();
                 // println!("linear_solver().initialize time: {:?}", duration);
             }
             let start = Instant::now();
@@ -345,7 +345,7 @@ where
                 LinSysWrapper::new(&A, &b),
                 self.last_err_squared_norm,
             );
-            let _duration = start.elapsed();
+            let duration = start.elapsed();
             // println!("opt iterate time: {:?}", duration);
             self.iterations += 1;
 

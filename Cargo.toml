@@ -26,6 +26,10 @@ layout-rs = {version="0.1.1", optional=true}
 graphviz-rust ={version="0.6.6", optional=true}
 # printpdf= {version="0.6.0", features=["svg"], path="../printpdf"}
 printpdf= {version="0.6.0", features=["svg"], optional=true, git = "https://github.com/Lishen1/printpdf.git", branch="feature/svg-text"}
+# faer = {git="https://github.com/sarah-ek/faer-rs.git"}
+faer-sparse = "0.15.0"
+faer-core = "0.15.0"
+dyn-stack = { version = "0.10", default-features = false }
 [features]
 default = ["viz"]
 viz = ["dep:dot_graph", "dep:random_color", "dep:lazy_static", "dep:prisma", "dep:angular-units", "dep:graphviz-rust", "dep:printpdf"]
