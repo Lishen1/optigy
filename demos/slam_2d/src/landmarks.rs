@@ -111,7 +111,7 @@ where
                 }
                 let ri = &rays[i];
                 let rj = &rays[j];
-                let ang = ComplexField::abs(ri.dot(rj).acos()).to_degrees();
+                let ang = ComplexField::abs(ComplexField::acos(ri.dot(rj))).to_degrees();
 
                 if ang > max_ang {
                     max_ang = ang;

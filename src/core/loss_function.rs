@@ -1,7 +1,9 @@
 use std::ops::MulAssign;
 
 use super::Real;
-use nalgebra::{DMatrix, DMatrixView, DMatrixViewMut, DVector, DVectorView, DVectorViewMut};
+use nalgebra::{
+    ComplexField, DMatrix, DMatrixView, DMatrixViewMut, DVector, DVectorView, DVectorViewMut,
+};
 
 pub trait LossFunction<R>: Clone
 where
@@ -112,7 +114,7 @@ where
 {
     pub fn variances(v_diag: &DVectorView<R>) -> Self {
         let sqrt_info_diag = v_diag.to_owned();
-        let sqrt_info_diag = sqrt_info_diag.map(|d| ((R::one() / d).sqrt()));
+        let sqrt_info_diag = sqrt_info_diag.map(|d| ComplexField::sqrt(R::one() / d));
         DiagonalLoss { sqrt_info_diag }
     }
     pub fn sigmas(v_diag: &DVectorView<R>) -> Self {

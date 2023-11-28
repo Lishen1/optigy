@@ -1,6 +1,6 @@
 use nalgebra::{
-    DMatrix, DMatrixView, DMatrixViewMut, DVector, DVectorViewMut, PermutationSequence, RawStorage,
-    RealField,
+    ComplexField, DMatrix, DMatrixView, DMatrixViewMut, DVector, DVectorViewMut,
+    PermutationSequence, RawStorage, RealField,
 };
 
 use crate::{
@@ -416,7 +416,7 @@ where
     for i in 0..d_sqrt.len() {
         let lambda = v[i];
         assert!(lambda > R::zero());
-        d_sqrt[i] = lambda.sqrt();
+        d_sqrt[i] = ComplexField::sqrt(lambda);
         d_sqrt_inv[i] = R::one() / d_sqrt[i];
     }
     let D_sqrt = DMatrix::from_diagonal(&d_sqrt);
