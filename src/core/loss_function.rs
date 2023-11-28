@@ -1,15 +1,11 @@
 use std::ops::MulAssign;
 
-use nalgebra::{
-    DMatrix, DMatrixView, DMatrixViewMut, DVector, DVectorView, DVectorViewMut, RealField,
-};
-use num::Float;
-
 use super::Real;
+use nalgebra::{DMatrix, DMatrixView, DMatrixViewMut, DVector, DVectorView, DVectorViewMut};
 
 pub trait LossFunction<R>: Clone
 where
-    R: RealField,
+    R: Real,
 {
     /// weight error: apply loss function
     /// in place operation to avoid excessive memory operation
@@ -29,7 +25,7 @@ pub struct GaussianLoss<R = f64> {
 }
 impl<R> GaussianLoss<R>
 where
-    R: RealField,
+    R: Real,
 {
     #[allow(non_snake_case)]
     pub fn information(I: DMatrixView<R>) -> Self {
@@ -53,7 +49,7 @@ where
 }
 impl<R> LossFunction<R> for GaussianLoss<R>
 where
-    R: RealField,
+    R: Real,
 {
     fn weight_error_in_place(&self, mut error: DVectorViewMut<R>) {
         let m = self.sqrt_info.clone() * error.clone_owned();
@@ -74,13 +70,13 @@ where
 #[derive(Clone)]
 pub struct ScaleLoss<R = f64>
 where
-    R: RealField + Float,
+    R: Real,
 {
     inv_sigma: R,
 }
 impl<R> ScaleLoss<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     pub fn scale(s: R) -> Self {
         ScaleLoss { inv_sigma: s }
@@ -88,7 +84,7 @@ where
 }
 impl<R> LossFunction<R> for ScaleLoss<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     fn weight_error_in_place(&self, mut error: DVectorViewMut<R>) {
         error.mul_assign(self.inv_sigma)
