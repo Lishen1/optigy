@@ -5,6 +5,8 @@ use nalgebra::{
 };
 use num::Float;
 
+use super::Real;
+
 pub trait LossFunction<R>: Clone
 where
     R: RealField,
@@ -104,17 +106,17 @@ where
 #[derive(Clone)]
 pub struct DiagonalLoss<R = f64>
 where
-    R: RealField + Float,
+    R: Real,
 {
     sqrt_info_diag: DVector<R>,
 }
 impl<R> DiagonalLoss<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     pub fn variances(v_diag: &DVectorView<R>) -> Self {
         let sqrt_info_diag = v_diag.to_owned();
-        let sqrt_info_diag = sqrt_info_diag.map(|d| (<R as Float>::sqrt(R::one() / d)));
+        let sqrt_info_diag = sqrt_info_diag.map(|d| ((R::one() / d).sqrt()));
         DiagonalLoss { sqrt_info_diag }
     }
     pub fn sigmas(v_diag: &DVectorView<R>) -> Self {
@@ -125,7 +127,7 @@ where
 }
 impl<R> LossFunction<R> for DiagonalLoss<R>
 where
-    R: RealField + Float,
+    R: Real,
 {
     fn weight_error_in_place(&self, mut error: DVectorViewMut<R>) {
         error.component_mul_assign(&self.sqrt_info_diag)

@@ -12,7 +12,7 @@ nohash-hasher = "0.2.0"
 nalgebra = {version="0.32.3", features=["compare"]}
 nalgebra-sparse = {version="0.9.0", features=["compare"]}
 num = "0.4.1"
-rand = "0.8.5"
+simba = "0.8.1"
 tynm = "0.1.8"
 clarabel = "0.6.0" 
 # dot_graph = {version="0.2.3", optional=true}
@@ -30,9 +30,10 @@ printpdf= {version="0.6.0", features=["svg"], optional=true, git = "https://gith
 faer-sparse = "0.15.0"
 faer-core = "0.15.0"
 dyn-stack = { version = "0.10", default-features = false }
+rand = {version="0.8.5", optional=true}
 [features]
 default = ["viz"]
-viz = ["dep:dot_graph", "dep:random_color", "dep:lazy_static", "dep:prisma", "dep:angular-units", "dep:graphviz-rust", "dep:printpdf"]
+viz = ["dep:dot_graph", "dep:random_color", "dep:lazy_static", "dep:prisma", "dep:angular-units", "dep:graphviz-rust", "dep:printpdf", "dep:rand"]
 [dev-dependencies]
 matrixcompare = "0.3.0"
 criterion = { version = "0.4", features = ["html_reports"] }

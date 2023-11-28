@@ -1,5 +1,4 @@
 use nalgebra::{matrix, vector, DMatrixView, DMatrixViewMut, DVectorViewMut, Matrix2, Vector2};
-use num::Float;
 use optigy::prelude::{Factor, GaussianLoss, Real, Variables, VariablesContainer, Vkey};
 
 use crate::E2;
@@ -51,8 +50,7 @@ where
         // let R_inv = pose_v.origin.inverse().matrix();
         // let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
         let th = R::from_f64(pose_v.origin.log()[2]).unwrap();
-        let R_inv =
-            matrix![Float::cos(th), -Float::sin(th); Float::sin(th), Float::cos(th) ].transpose();
+        let R_inv = matrix![th.cos(), -th.sin(); th.sin(), th.cos() ].transpose();
         let p = pose_v.origin.params().fixed_rows::<2>(0);
         let l = landmark_v.val;
         // let l0 = pose_v.origin.inverse().transform(&landmark_v.val);
@@ -75,8 +73,7 @@ where
         // let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
 
         let th = R::from_f64(pose_v.origin.log()[2]).unwrap();
-        let R_inv =
-            matrix![Float::cos(th), -Float::sin(th); Float::sin(th), Float::cos(th) ].transpose();
+        let R_inv = matrix![th.cos(), -th.sin(); th.sin(), th.cos() ].transpose();
 
         let l = landmark_v.val;
         let p = pose_v.origin.params().fixed_rows::<2>(0);
@@ -92,11 +89,7 @@ where
         let y = landmark_v.val[1] - R::from_f64(pose_v.origin.params()[1]).unwrap();
 
         jacobian.columns_mut(4, 1).copy_from(
-            &(J_norm
-                * Vector2::new(
-                    -x * Float::sin(th) + y * Float::cos(th),
-                    -x * Float::cos(th) - y * Float::sin(th),
-                )),
+            &(J_norm * Vector2::new(-x * th.sin() + y * th.cos(), -x * th.cos() - y * th.sin())),
         );
         // println!("an J: {}", self.jacobians.borrow());
         // compute_numerical_jacobians(variables, self, &mut self.jacobians.borrow_mut());

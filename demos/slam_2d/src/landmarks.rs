@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
-use nalgebra::{matrix, vector, Matrix2, Vector2};
-use num::Float;
+use nalgebra::{matrix, vector, ComplexField, Matrix2, Vector2};
 use optigy::prelude::{
     Factor, FactorGraph, FactorsContainer, OptIterate, Real, VariablesContainer, Vkey,
 };
@@ -112,7 +111,7 @@ where
                 }
                 let ri = &rays[i];
                 let rj = &rays[j];
-                let ang = Float::abs(Float::acos(ri.dot(rj)).to_degrees());
+                let ang = ComplexField::abs(ri.dot(rj).acos()).to_degrees();
 
                 if ang > max_ang {
                     max_ang = ang;
@@ -131,7 +130,7 @@ where
         for p_key in &self.poses_keys {
             let pose: &SE2<R> = fg.get_variable(*p_key).unwrap();
             let th = R::from_f64(pose.origin.log()[2]).unwrap();
-            let R_cam = matrix![Float::cos(th), -Float::sin(th); Float::sin(th), Float::cos(th) ];
+            let R_cam = matrix![ComplexField::cos(th), -ComplexField::sin(th); ComplexField::sin(th), ComplexField::cos(th) ];
             for f_idx in 0..self.factors.len() {
                 let vf = self.factors.get(f_idx).unwrap();
                 if vf.keys()[1] == *p_key {
@@ -152,8 +151,9 @@ where
                 let p = &poses[i];
                 let r = &rays[i];
                 let nr = (coord - p).normalize();
-                let ang =
-                    Float::abs(Float::acos(r.dot(&nr).clamp(-R::one(), R::one())).to_degrees());
+                let ang = ComplexField::abs(
+                    ComplexField::acos(r.dot(&nr).clamp(-R::one(), R::one())).to_degrees(),
+                );
                 if !ang.is_finite() {
                     dbg!(coord, p, nr, r.dot(&nr));
                 }

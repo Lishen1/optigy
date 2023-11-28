@@ -1,5 +1,4 @@
-use nalgebra::{matrix, vector, DMatrixViewMut, DVectorViewMut, Vector2};
-use num::Float;
+use nalgebra::{matrix, vector, ComplexField, DMatrixViewMut, DVectorViewMut, Vector2};
 use optigy::prelude::{DiagonalLoss, Factor, Real, Variables, VariablesContainer, Vkey};
 use slam_common::se2::SE2;
 #[derive(Clone)]
@@ -52,7 +51,7 @@ where
         let v0: &SE2<R> = variables.get(self.keys()[0]).unwrap();
         let th = -R::from_f64(v0.origin.log()[2]).unwrap();
         let R_inv =
-            -matrix![Float::cos(th), -Float::sin(th); Float::sin(th), Float::cos(th) ].transpose();
+            -matrix![ComplexField::cos(th), -ComplexField::sin(th); ComplexField::sin(th), ComplexField::cos(th) ].transpose();
         jacobian.view_mut((0, 0), (2, 2)).copy_from(&R_inv);
         // println!("R {}", R_inv);
     }
