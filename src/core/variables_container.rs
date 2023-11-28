@@ -285,7 +285,8 @@ where
         match var {
             Some(var) => {
                 let vd = var.dim();
-                let dx = delta.rows(offset, vd);
+                let dx = delta.rows(offset, vd).clone_owned();
+                let dx: DVectorView<R> = dx.as_view();
                 var.retract(dx);
                 offset + vd
             }
@@ -366,7 +367,8 @@ where
                 let mut dx = DVector::<R>::zeros(var.dim());
                 for i in 0..var.dim() {
                     dx[i] = delta;
-                    let var_ret = var.retracted(dx.as_view());
+                    let mut var_ret = var.retracted(dx.as_view());
+                    var_ret.update(variables);
                     variables
                         .container
                         .get_mut::<T::Value>()
@@ -375,7 +377,8 @@ where
                     let mut dy0 = DVector::<R>::zeros(factor.dim());
                     factor.error(variables, dy0.as_view_mut());
                     dx[i] = -delta;
-                    let var_ret = var.retracted(dx.as_view());
+                    let mut var_ret = var.retracted(dx.as_view());
+                    var_ret.update(variables);
                     variables
                         .container
                         .get_mut::<T::Value>()
