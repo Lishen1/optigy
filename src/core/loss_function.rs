@@ -54,8 +54,7 @@ where
     R: Real,
 {
     fn weight_error_in_place(&self, mut error: DVectorViewMut<R>) {
-        let m = self.sqrt_info.clone() * error.clone_owned();
-        error.copy_from(&m);
+        error.copy_from(&(&self.sqrt_info * &error));
     }
 
     fn weight_jacobians_error_in_place(
@@ -63,10 +62,8 @@ where
         mut error: DVectorViewMut<R>,
         mut jacobians: DMatrixViewMut<R>,
     ) {
-        let m = self.sqrt_info.clone() * error.clone_owned();
-        error.copy_from(&m);
-        let m = self.sqrt_info.clone() * jacobians.clone_owned();
-        jacobians.copy_from(&m);
+        error.copy_from(&(&self.sqrt_info * &error));
+        jacobians.copy_from(&(&self.sqrt_info * &jacobians));
     }
 }
 #[derive(Clone)]

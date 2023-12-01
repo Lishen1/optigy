@@ -26,7 +26,7 @@ where
     symbolic: Option<SymbolicCholesky<usize>>,
     factorize_mem: Option<GlobalPodBuffer>,
     solve_mem: Option<GlobalPodBuffer>,
-    l_values: Mat<f64>,
+    l_values: Mat<R>,
     factors: Option<QDLDLFactorisation>,
 }
 #[allow(non_snake_case)]
@@ -53,6 +53,7 @@ where
     );
     A
 }
+const USE_CLARABEL: bool = true;
 
 impl<R> SparseLinearSolver<R> for SparseCholeskySolver<R>
 where
@@ -113,13 +114,12 @@ where
         //     A.pattern().minor_indices().to_vec(),
         //     vals,
         // );
-        let mut vals = Vec::<f64>::new();
-        for v in A.values() {
-            vals.push(v.to_f64().unwrap());
-        }
 
-        let use_clarabel = true;
-        if use_clarabel {
+        if USE_CLARABEL {
+            let mut vals = Vec::<f64>::new();
+            for v in A.values() {
+                vals.push(v.to_f64().unwrap());
+            }
             let A = algebra::CscMatrix::new(
                 A.nrows(),
                 A.ncols(),
@@ -148,10 +148,22 @@ where
         } else {
             let col_ptr = A.pattern().major_offsets();
             let row_idx = A.pattern().minor_indices();
-            let A = SparseColMatRef::<'_, usize, f64>::new(
+            let A = SparseColMatRef::<'_, usize, R>::new(
                 SymbolicSparseColMatRef::new_checked(A.nrows(), A.ncols(), col_ptr, None, row_idx),
-                &vals,
+                A.values(),
             );
+            // let A = SparseColMatRef::<'_, usize, R>::new(
+            //     unsafe {
+            //         SymbolicSparseColMatRef::new_unchecked(
+            //             A.nrows(),
+            //             A.ncols(),
+            //             col_ptr,
+            //             None,
+            //             row_idx,
+            //         )
+            //     },
+            //     A.values(),
+            // );
 
             let parallelism = Parallelism::None;
             if let Some(symbolic) = self.symbolic.as_ref() {
@@ -160,7 +172,7 @@ where
 
                 let start = Instant::now();
                 // let mut l_values = Mat::<f64>::zeros(symbolic.len_values(), 1);
-                symbolic.factorize_numeric_ldlt::<f64>(
+                symbolic.factorize_numeric_ldlt::<R>(
                     self.l_values.col_as_slice_mut(0),
                     A,
                     side,
@@ -171,12 +183,8 @@ where
                 let duration = start.elapsed();
                 // println!("factorize_numeric_ldlt time : {:?}", duration);
                 let start = Instant::now();
-                let mut bv = Vec::<f64>::new();
-                for i in 0..b.nrows() {
-                    bv.push(b[i].to_f64().unwrap());
-                }
                 let L_values = self.l_values.col_as_slice(0);
-                let rhs = Mat::<f64>::from_fn(bv.len(), 1, |i, _| bv[i]);
+                let rhs = Mat::<R>::from_fn(b.len(), 1, |i, _| b[i]);
                 let mut sx = rhs.clone();
 
                 let start = Instant::now();
@@ -192,8 +200,8 @@ where
 
                 let _duration = start.elapsed();
                 // println!("cholesky factor time: {:?}", duration);
-                for i in 0..bv.len() {
-                    x[i] = R::from_f64(sx.col_as_slice_mut(0)[i]).unwrap();
+                for i in 0..b.len() {
+                    x[i] = sx.col_as_slice_mut(0)[i];
                 }
                 LinearSolverStatus::Success
             } else {
@@ -213,12 +221,11 @@ where
     #[allow(non_snake_case)]
     fn initialize(&mut self, A: &CscMatrix<R>) -> LinearSolverStatus {
         // let A = make_transposed(A);
-        let mut vals = Vec::<f64>::new();
-        for v in A.values() {
-            vals.push(v.to_f64().unwrap());
-        }
-        let use_clarabel = true;
-        if use_clarabel {
+        if USE_CLARABEL {
+            let mut vals = Vec::<f64>::new();
+            for v in A.values() {
+                vals.push(v.to_f64().unwrap());
+            }
             let A = algebra::CscMatrix::new(
                 A.nrows(),
                 A.ncols(),
@@ -234,9 +241,9 @@ where
         } else {
             let col_ptr = A.pattern().major_offsets();
             let row_idx = A.pattern().minor_indices();
-            let A = SparseColMatRef::<'_, usize, f64>::new(
+            let A = SparseColMatRef::<'_, usize, R>::new(
                 SymbolicSparseColMatRef::new_checked(A.nrows(), A.ncols(), col_ptr, None, row_idx),
-                &vals,
+                A.values(),
             );
             let side = Side::Upper;
             let parallelism = Parallelism::None;
@@ -247,13 +254,13 @@ where
             if let Some(symbolic) = self.symbolic.as_ref() {
                 self.factorize_mem = Some(GlobalPodBuffer::new(
                     symbolic
-                        .factorize_numeric_ldlt_req::<f64>(false, parallelism)
+                        .factorize_numeric_ldlt_req::<R>(false, parallelism)
                         .unwrap(),
                 ));
-                self.l_values = Mat::<f64>::zeros(symbolic.len_values(), 1);
+                self.l_values = Mat::<R>::zeros(symbolic.len_values(), 1);
 
                 self.solve_mem = Some(GlobalPodBuffer::new(
-                    symbolic.dense_solve_in_place_req::<f64>(1).unwrap(),
+                    symbolic.dense_solve_in_place_req::<R>(1).unwrap(),
                 ));
             }
         }

@@ -5,7 +5,7 @@ OptiGy general purpose [factor graph] optimizer mostly suitable for SLAM tasks ~
 >**Warning**
 >**WIP**
 ## Features
-- As fast as [miniSAM]
+- Faster than [miniSAM]
 - Static polymorphism
 - Rust only
 - Numerical differentiation
