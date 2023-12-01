@@ -1,7 +1,5 @@
-use std::ops::AddAssign;
-
-use hashbrown::HashSet;
 use nalgebra::{DMatrix, DVector};
+use std::{collections::HashSet, ops::AddAssign};
 
 use crate::{
     core::{

@@ -1,7 +1,8 @@
 use std::ops::Index;
 
 use crate::core::key::Vkey;
-use hashbrown::HashMap;
+
+use super::HashMap;
 #[cfg_attr(debug_assertions, derive(Debug))]
 #[derive(Clone)]
 pub struct VariableOrdering {
@@ -28,14 +29,14 @@ impl VariableOrdering {
 impl Default for VariableOrdering {
     fn default() -> Self {
         VariableOrdering {
-            keymap: HashMap::<Vkey, usize>::new(),
+            keymap: HashMap::<Vkey, usize>::default(),
             keylist: Vec::<Vkey>::new(),
         }
     }
 }
 impl VariableOrdering {
     pub fn new(keylist: &[Vkey]) -> Self {
-        let mut keymap: HashMap<Vkey, usize> = HashMap::new();
+        let mut keymap: HashMap<Vkey, usize> = HashMap::default();
         for (i, k) in keylist.iter().enumerate() {
             if keymap.insert(*k, i).is_some() {
                 panic!("keymap already has a key {:?}", k)

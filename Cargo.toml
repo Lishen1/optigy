@@ -7,7 +7,6 @@ edition = "2021"
 [workspace]
 members = ["demos/pose_graph_g2o", "demos/slam_2d", "demos/approximation", "demos/gps_factor"]
 [dependencies]
-hashbrown = "0.11.2"
 nohash-hasher = "0.2.0"
 nalgebra = {version="0.32.3", features=["compare"]}
 nalgebra-sparse = {version="0.9.0", features=["compare"]}

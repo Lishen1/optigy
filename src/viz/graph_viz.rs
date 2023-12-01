@@ -1,15 +1,15 @@
 use std::cell::RefCell;
 
+use std::collections::HashSet;
 use std::iter::zip;
 
-use crate::core::Real;
+use crate::core::{HashMap, Real};
 use crate::prelude::{FactorGraph, FactorsContainer, OptIterate, VariablesContainer, Vkey};
 use angular_units::Deg;
 use dot_graph::{Edge, Graph, Kind, Node, Style, Subgraph};
 use graphviz_rust::cmd::CommandArg;
 
 use graphviz_rust::{cmd::Format, exec, parse, printer::PrinterContext};
-use hashbrown::{HashMap, HashSet};
 
 use prisma::{Hsv, Rgb};
 use rand::seq::SliceRandom;

@@ -2,9 +2,8 @@ use std::{collections::BTreeSet, slice::IterMut};
 
 use crate::core::{
     factors::Factors, factors_container::FactorsContainer, variable_ordering::VariableOrdering,
-    variables::Variables, variables_container::VariablesContainer, Real,
+    variables::Variables, variables_container::VariablesContainer, HashMap, Real,
 };
-use hashbrown::HashMap;
 
 /// base class for A and A'A sparsity pattern, if variable ordering is fixed,
 /// only need to be constructed once for different linearzation runs
@@ -238,7 +237,7 @@ where
     // where to insert nnz element
     sparsity
         .inner_insert_map
-        .resize(variable_ordering.len(), HashMap::new());
+        .resize(variable_ordering.len(), HashMap::default());
 
     for var1_idx in 0..variable_ordering.len() {
         let mut nnzdim_counter: usize = 0;
