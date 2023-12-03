@@ -24,6 +24,7 @@ dyn-stack = { version = "0.10", default-features = false }
 matrixcompare = "0.3.0"
 criterion = { version = "0.4", features = ["html_reports"] }
 lazy_static = {version="1.4.0"}
+rand = {version="0.8.5"}
 [[bench]]
 name = "sparsity_pattern"
 harness = false
