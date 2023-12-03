@@ -9,3 +9,4 @@ optigy = { path = "../../" }
 nalgebra = {version="0.32.3", features=["compare"]}
 slam_common= { path = "../slam-common" }
 num = "0.4.1"
+viz = {path="../../viz"}

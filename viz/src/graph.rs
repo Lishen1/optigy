@@ -1,13 +1,14 @@
 use std::cell::RefCell;
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::iter::zip;
 
-use crate::core::{HashMap, Real};
-use crate::prelude::{FactorGraph, FactorsContainer, OptIterate, VariablesContainer, Vkey};
 use angular_units::Deg;
 use dot_graph::{Edge, Graph, Kind, Node, Style, Subgraph};
 use graphviz_rust::cmd::CommandArg;
+use optigy::core::Real;
+use optigy::prelude::{FactorGraph, FactorsContainer, OptIterate, VariablesContainer, Vkey};
 
 use graphviz_rust::{cmd::Format, exec, parse, printer::PrinterContext};
 
@@ -107,6 +108,7 @@ impl FactorGraphViz {
         // for svg convert
         // sudo apt install ttf-mscorefonts-installer
         let dot_content = self.generate_dot(factor_graph, variables_group, factors_group);
+        // println!("dot {}", dot_content);
         {
             let g = parse(&dot_content).unwrap();
             let graph_svg = exec(
@@ -122,6 +124,9 @@ impl FactorGraphViz {
                 ],
             )
             .expect("probaly you should install graphviz");
+            // use std::fs::File;
+            // use std::io::Write;
+
             // let mut output = File::create("graph.svg").unwrap();
             // write!(output, "{}", graph_svg).unwrap();
             self.titles.push(title.to_owned());

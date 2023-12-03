@@ -1,0 +1,20 @@
+[package]
+name = "viz"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# optigy = {version="0.1.0", git="https://github.com/Lishen1/optigy.git"}
+optigy = {version="0.1.0", path="../"}
+dot_graph = {version="0.2.3", git="https://github.com/Lishen1/dot_graph.git" }
+lazy_static = {version="1.4.0" }
+random_color = {version="0.6.1"} 
+prisma = {version="0.1.1"}
+angular-units = {version="^0.2.4"}
+layout-rs = {version="0.1.1" }
+graphviz-rust ={version="0.6.6"}
+# printpdf= {version="0.6.0", features=["svg"], path="../printpdf"}
+printpdf= {version="0.6.0", features=["svg"], git = "https://github.com/Lishen1/printpdf.git", branch="feature/svg-text"}
+rand = {version="0.8.5"}

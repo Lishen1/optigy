@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use nalgebra_sparse::factorization;
 use state_variables::E2;
 
 use core::time;
@@ -24,7 +25,8 @@ use optigy::prelude::{
     FactorsContainer, GaussianLoss, LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
     NonlinearOptimizerVerbosityLevel, OptParams, ScaleLoss, Variables, VariablesContainer, Vkey,
 };
-use optigy::viz::graph_viz::FactorGraphViz;
+use viz::graph::FactorGraphViz;
+
 use random_color::RandomColor;
 pub mod gps_factor;
 pub mod landmarks;
@@ -48,6 +50,8 @@ struct Args {
     do_viz: bool,
     #[arg(long, action)]
     write_gif: bool,
+    #[arg(long, action)]
+    write_pdf: bool,
     #[arg(long, action)]
     marginalize: bool,
     #[arg(long, action)]
@@ -455,7 +459,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let img_w = 800_i32;
     let img_h = 600_i32;
 
-    let write_pdf = false;
+    let write_pdf = args.write_pdf;
     let image: Option<fs::File>;
     let mut encoder: Option<gif::Encoder<fs::File>> = None;
     if args.write_gif || args.do_viz {
@@ -674,6 +678,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let first_pose_id = poses_keys.pop_front().unwrap();
             if write_pdf {
                 factor_graph_viz.add_page(&factor_graph, None, None, &format!("Step {}", step));
+                factor_graph_viz.save_pdf("fg.pdf");
             }
             let pose: &SE2 = factor_graph.get_variable(first_pose_id).unwrap();
             let pose = pose.origin.params();

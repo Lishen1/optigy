@@ -12,6 +12,7 @@ use optigy::prelude::{
 
 use slam_common::between_factor::BetweenFactor;
 use slam_common::se2::SE2;
+use viz::graph::FactorGraphViz;
 
 #[derive(Clone)]
 struct GPSPositionFactor<R = f64>
@@ -99,6 +100,7 @@ fn main() {
         variables_container,
         LevenbergMarquardtOptimizer::with_params(params),
     );
+    let mut factor_graph_viz = FactorGraphViz::default();
 
     factor_graph.add_factor(GPSPositionFactor::new(
         Vkey(1),
@@ -160,4 +162,6 @@ fn main() {
             .factors()
             .error_squared_norm(factor_graph.variables())
     );
+    factor_graph_viz.add_page(&factor_graph, None, None, "GPS factor");
+    factor_graph_viz.save_pdf("fg.pdf");
 }

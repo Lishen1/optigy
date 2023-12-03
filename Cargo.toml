@@ -14,25 +14,12 @@ num = "0.4.1"
 simba = "0.8.1"
 tynm = "0.1.8"
 clarabel = "0.6.0" 
-# dot_graph = {version="0.2.3", optional=true}
-# dot_graph = {version="0.2.3", path="../dot_graph", optional=true}
-dot_graph = {version="0.2.3", git="https://github.com/Lishen1/dot_graph.git", optional=true}
 lazy_static = {version="1.4.0", optional=true}
 random_color = {version="0.6.1", optional=true} 
 prisma = {version="0.1.1", optional=true}
-angular-units = {version="^0.2.4", optional=true}
-layout-rs = {version="0.1.1", optional=true}
-graphviz-rust ={version="0.6.6", optional=true}
-# printpdf= {version="0.6.0", features=["svg"], path="../printpdf"}
-printpdf= {version="0.6.0", features=["svg"], optional=true, git = "https://github.com/Lishen1/printpdf.git", branch="feature/svg-text"}
-# faer = {git="https://github.com/sarah-ek/faer-rs.git"}
 faer-sparse = "0.15.0"
 faer-core = "0.15.0"
 dyn-stack = { version = "0.10", default-features = false }
-rand = {version="0.8.5", optional=true}
-[features]
-default = ["viz"]
-viz = ["dep:dot_graph", "dep:random_color", "dep:lazy_static", "dep:prisma", "dep:angular-units", "dep:graphviz-rust", "dep:printpdf", "dep:rand"]
 [dev-dependencies]
 matrixcompare = "0.3.0"
 criterion = { version = "0.4", features = ["html_reports"] }
