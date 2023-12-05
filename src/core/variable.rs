@@ -31,13 +31,6 @@ where
     fn retract_local_jacobian(&self, linearization_point: &Self, jacobian: DMatrixViewMut<R>) {
         compute_variable_numerical_jacobian(linearization_point, self, jacobian);
     }
-    /// Updates some variable data vased on other variables.
-    /// Needed for coordinate frame transformation for example.
-    fn update<VC>(&mut self, _variables: &Variables<VC, R>)
-    where
-        VC: VariablesContainer<R>,
-    {
-    }
 }
 
 /// Performs numerical differentiation of variable local(retact(dx)).

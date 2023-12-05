@@ -90,9 +90,6 @@ where
     fn remove(&mut self, key: Vkey) -> bool;
     /// variable type name used for debugging
     fn type_name_at(&self, key: Vkey) -> Option<String>;
-    fn update<C>(&mut self, variables: &Variables<C, R>)
-    where
-        C: VariablesContainer<R>;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -201,12 +198,6 @@ where
 
     fn type_name_at(&self, _key: Vkey) -> Option<String> {
         None
-    }
-
-    fn update<C>(&mut self, _variables: &Variables<C, R>)
-    where
-        C: VariablesContainer<R>,
-    {
     }
 }
 
@@ -368,7 +359,6 @@ where
                 for i in 0..var.dim() {
                     dx[i] = delta;
                     let mut var_ret = var.retracted(dx.as_view());
-                    var_ret.update(variables);
                     variables
                         .container
                         .get_mut::<T::Value>()
@@ -378,7 +368,6 @@ where
                     factor.error(variables, dy0.as_view_mut());
                     dx[i] = -delta;
                     let mut var_ret = var.retracted(dx.as_view());
-                    var_ret.update(variables);
                     variables
                         .container
                         .get_mut::<T::Value>()
@@ -435,15 +424,6 @@ where
         } else {
             self.parent.type_name_at(key)
         }
-    }
-    fn update<C>(&mut self, variables: &Variables<C, R>)
-    where
-        C: VariablesContainer<R>,
-    {
-        for v in self.data.values_mut() {
-            v.update(variables);
-        }
-        self.parent.update(variables);
     }
 }
 
