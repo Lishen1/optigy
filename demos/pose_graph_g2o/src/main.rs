@@ -10,8 +10,8 @@ use optigy::nonlinear::levenberg_marquardt_optimizer::{
     LevenbergMarquardtOptimizer, LevenbergMarquardtOptimizerParams,
 };
 use optigy::prelude::{
-    Factors, FactorsContainer, GaussNewtonOptimizer, GaussianLoss, NonlinearOptimizer, Variables,
-    VariablesContainer, Vkey,
+    Factors, FactorsContainer, GaussNewtonOptimizer, GaussNewtonOptimizerParams, GaussianLoss,
+    NonlinearOptimizer, NonlinearOptimizerVerbosityLevel, Variables, VariablesContainer, Vkey,
 };
 use plotters::coord::types::RangedCoordf64;
 use plotters::prelude::*;
@@ -97,10 +97,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     const OUTPUT_GIF: &str = "pose_graph.gif";
 
-    let params = LevenbergMarquardtOptimizerParams::default();
+    // let params = LevenbergMarquardtOptimizerParams::default();
     // params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Subiteration;
     // let mut optimizer = NonlinearOptimizer::new(LevenbergMarquardtOptimizer::with_params(params));
-    let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::default());
+    let mut params = GaussNewtonOptimizerParams::default();
+    params.base.verbosity_level = NonlinearOptimizerVerbosityLevel::Subiteration;
+    let mut optimizer = NonlinearOptimizer::new(GaussNewtonOptimizer::with_params(params));
     let start = Instant::now();
     let opt_res = if args.do_viz {
         let img_w = 1024_i32;
@@ -121,10 +123,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                     let mut max_y = f64::MIN;
                     for key in variables2.default_variable_ordering().keys() {
                         let v: &SE2 = variables2.get(*key).unwrap();
-                        min_x = min_x.min(v.origin.params()[0]);
-                        max_x = max_x.max(v.origin.params()[0]);
-                        min_y = min_y.min(v.origin.params()[1]);
-                        max_y = max_y.max(v.origin.params()[1]);
+                        min_x = min_x.min(v.origin.translation.x);
+                        max_x = max_x.max(v.origin.translation.x);
+                        min_y = min_y.min(v.origin.translation.y);
+                        max_y = max_y.max(v.origin.translation.y);
                     }
                     let root = root_screen.apply_coord_spec(Cartesian2d::<
                         RangedCoordf64,
@@ -140,7 +142,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         let v: &SE2 = variables2.get(*key).unwrap();
                         // Draw an circle on the drawing area
                         root.draw(&Circle::new(
-                            (v.origin.params()[0], v.origin.params()[1]),
+                            (v.origin.translation.x, v.origin.translation.y),
                             3,
                             Into::<ShapeStyle>::into(GREEN).filled(),
                         ))
@@ -156,8 +158,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                         let v1: &SE2 = variables2.get(keys[1]).unwrap();
                         root.draw(&PathElement::new(
                             vec![
-                                (v0.origin.params()[0], v0.origin.params()[1]),
-                                (v1.origin.params()[0], v1.origin.params()[1]),
+                                (v0.origin.translation.x, v0.origin.translation.y),
+                                (v1.origin.translation.x, v1.origin.translation.y),
                             ],
                             RED,
                         ))

@@ -129,13 +129,13 @@ where
         let mut poses = Vec::<Vector2<R>>::new();
         for p_key in &self.poses_keys {
             let pose: &SE2<R> = fg.get_variable(*p_key).unwrap();
-            let th = R::from_f64(pose.origin.log()[2]).unwrap();
+            let th = pose.origin.rotation.angle();
             let R_cam = matrix![ComplexField::cos(th), -ComplexField::sin(th); ComplexField::sin(th), ComplexField::cos(th) ];
             for f_idx in 0..self.factors.len() {
                 let vf = self.factors.get(f_idx).unwrap();
                 if vf.keys()[1] == *p_key {
-                    let p = pose.origin.params().fixed_rows::<2>(0);
-                    let p = vector![R::from_f64(p[0]).unwrap(), R::from_f64(p[1]).unwrap()];
+                    let p = pose.origin.translation.vector;
+                    let p = vector![p[0], p[1]];
                     let r = R_cam * vf.ray();
                     let Ai = Matrix2::<R>::identity() - r * r.transpose();
                     A += Ai;

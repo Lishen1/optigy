@@ -51,13 +51,13 @@ where
             .unwrap();
         // let R_inv = pose_v.origin.inverse().matrix();
         // let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
-        let th = R::from_f64(pose_v.origin.log()[2]).unwrap();
+        let th = pose_v.origin.rotation.angle();
         let R_inv =
             matrix![ComplexField::cos(th), -ComplexField::sin(th); ComplexField::sin(th), ComplexField::cos(th) ].transpose();
-        let p = pose_v.origin.params().fixed_rows::<2>(0);
+        let p = pose_v.origin.translation.vector;
         let l = landmark_v.val;
         // let l0 = pose_v.origin.inverse().transform(&landmark_v.val);
-        let l0 = R_inv * (l - vector![R::from_f64(p[0]).unwrap(), R::from_f64(p[1]).unwrap()]);
+        let l0 = R_inv * (l - vector![p[0], p[1]]);
 
         let r = l0.normalize();
 
@@ -75,22 +75,22 @@ where
         // let R_inv = pose_v.origin.inverse().matrix();
         // let R_inv = R_inv.fixed_view::<2, 2>(0, 0).to_owned();
 
-        let th = R::from_f64(pose_v.origin.log()[2]).unwrap();
+        let th = pose_v.origin.rotation.angle();
         let R_inv =
             matrix![ComplexField::cos(th), -ComplexField::sin(th); ComplexField::sin(th), ComplexField::cos(th) ].transpose();
 
         let l = landmark_v.val;
-        let p = pose_v.origin.params().fixed_rows::<2>(0);
-        let l0 = R_inv * (l - vector![R::from_f64(p[0]).unwrap(), R::from_f64(p[1]).unwrap()]);
+        let p = pose_v.origin.translation.vector;
+        let l0 = R_inv * (l - vector![p[0], p[1]]);
         // let l0 = R_inv * l - R_inv * p;
 
         let r = l0.normalize();
         let J_norm = (Matrix2::identity() - r * r.transpose()) / l0.norm();
         jacobian.columns_mut(0, 2).copy_from(&(J_norm * R_inv));
         jacobian.columns_mut(2, 2).copy_from(&(-J_norm));
-        let th = R::from_f64(pose_v.origin.log()[2]).unwrap();
-        let x = landmark_v.val[0] - R::from_f64(pose_v.origin.params()[0]).unwrap();
-        let y = landmark_v.val[1] - R::from_f64(pose_v.origin.params()[1]).unwrap();
+        let th = pose_v.origin.rotation.angle();
+        let x = landmark_v.val[0] - pose_v.origin.translation.x;
+        let y = landmark_v.val[1] - pose_v.origin.translation.y;
 
         jacobian.columns_mut(4, 1).copy_from(
             &(J_norm

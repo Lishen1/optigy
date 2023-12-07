@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use nalgebra_sparse::factorization;
+
 use state_variables::E2;
 
 use core::time;
@@ -184,14 +184,14 @@ fn draw<FC, VC>(
         for wi in 0..win_size {
             let p_id = poses_keys[wi];
             let v = variables.get::<SE2>(p_id).unwrap();
-            let th = v.origin.log()[2];
+            let th = v.origin.rotation.angle();
             let R = matrix![th.cos(), -th.sin(); th.sin(), th.cos() ];
             for vf in factors.get_vec::<VisionFactor>() {
                 if vf.keys()[VisionFactor::<f64>::POSE_KEY] == p_id {
                     let l = variables.get::<E2>(vf.keys()[VisionFactor::<f64>::LANDMARK_KEY]);
                     if l.is_some() {
                         let l = l.unwrap();
-                        let p0 = v.origin.params().fixed_rows::<2>(0);
+                        let p0 = v.origin.translation.vector;
                         let r = (R * vf.ray()).normalize();
                         assert!(r.norm() > 0.99 && r.norm() < 1.000001);
                         let p1 = p0 + r * (l.val - p0).norm();
@@ -211,8 +211,8 @@ fn draw<FC, VC>(
     }
     for (_k, v) in variables.get_map::<SE2>().iter() {
         draw_circle(
-            v.origin.params()[0] as f32,
-            v.origin.params()[1] as f32,
+            v.origin.translation.x as f32,
+            v.origin.translation.y as f32,
             landmark_rad,
             GREEN,
         );
@@ -275,8 +275,8 @@ fn draw<FC, VC>(
         let v0 = variables.get::<SE2>(key_0);
         let v1 = variables.get::<SE2>(key_1);
         if v0.is_some() && v1.is_some() {
-            let p0 = v0.unwrap().origin.params();
-            let p1 = v1.unwrap().origin.params();
+            let p0 = v0.unwrap().origin.translation.vector;
+            let p1 = v1.unwrap().origin.translation.vector;
             draw_line(
                 p0[0] as f32,
                 p0[1] as f32,
@@ -291,10 +291,10 @@ fn draw<FC, VC>(
         let key_0 = poses_keys[idx];
         let v0 = variables.get::<SE2>(key_0);
         if let Some(v0) = v0 {
-            let p0 = v0.origin.params();
-            let R = v0.origin.matrix();
+            let p0 = v0.origin.translation.vector;
+            let R = v0.origin.rotation.to_rotation_matrix().matrix().clone();
             let _R = R.fixed_view::<2, 2>(0, 0).to_owned();
-            let th = v0.origin.log()[2];
+            let th = v0.origin.rotation.angle();
             let R = matrix![th.cos(), -th.sin(); th.sin(), th.cos()];
             // println!("R det {}", R.determinant());
             let len = 0.6;
@@ -510,7 +510,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .unwrap()
                 .origin;
             let curr_pose = factor_graph.get_variable_mut::<SE2>(curr_pose_id).unwrap();
-            curr_pose.origin = prev_pose.multiply(&dse2.origin);
+            curr_pose.origin = prev_pose * &dse2.origin;
             // pose1.origin = pose0;
             factor_graph.add_factor(BetweenFactor::new(
                 prev_pose_id,
@@ -540,9 +540,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         poses_keys.push_back(curr_pose_id);
         let last_pose_key = *poses_keys.front().unwrap();
         let last_pose: &SE2 = factor_graph.get_variable(last_pose_key).unwrap();
-        let lx = last_pose.origin.params()[0];
-        let ly = last_pose.origin.params()[1];
-        let lth = last_pose.origin.log()[2];
+        let lx = last_pose.origin.translation.x;
+        let ly = last_pose.origin.translation.y;
+        let lth = last_pose.origin.rotation.angle();
         if args.marginalize {
             if id == 0 {
                 factor_graph.add_factor(PriorFactor::new(
@@ -681,7 +681,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 factor_graph_viz.save_pdf("fg.pdf");
             }
             let pose: &SE2 = factor_graph.get_variable(first_pose_id).unwrap();
-            let pose = pose.origin.params();
+            let pose = pose.origin.translation.vector;
             poses_history.push(vector![pose[0], pose[1]]);
 
             landmarks.proc_pose_remove(&mut factor_graph, first_pose_id, args.marginalize);

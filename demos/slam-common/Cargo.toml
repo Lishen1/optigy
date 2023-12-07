@@ -7,5 +7,7 @@ workspace = "../../"
 [dependencies]
 optigy = { path = "../../" }
 nalgebra = {version="0.32.3", features=["compare"]}
-sophus-rs= { git = "https://github.com/Lishen1/sophus-rs.git",  branch="lie-only" }
 num = "0.4.1"
+# manif = {path="../../../manif-rs"}
+manif = {git="https://github.com/Lishen1/manif-rs.git", rev="32f2524"}
+

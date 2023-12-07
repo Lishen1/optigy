@@ -1,4 +1,3 @@
-use nalgebra::vector;
 use nalgebra::DMatrixViewMut;
 use nalgebra::DVectorViewMut;
 
@@ -46,9 +45,8 @@ where
         C: VariablesContainer<R>,
     {
         let v0: &SE2<R> = variables.get(self.keys()[0]).unwrap();
-        let pose = v0.origin.params();
-        let pose = vector![pose[0], pose[1]];
-        let d = pose.cast::<R>() - self.pose;
+        let pose = v0.origin.translation.vector;
+        let d = pose - self.pose;
         error.copy_from(&d);
     }
 

@@ -34,9 +34,8 @@ where
         C: VariablesContainer<R>,
     {
         let v0: &SE2<R> = variables.get(self.keys()[0]).unwrap();
-        let pose = v0.origin.params();
-        let pose = vector![pose[0], pose[1]];
-        let d = self.pose - pose.cast::<R>();
+        let pose = v0.origin.translation.vector;
+        let d = self.pose - pose;
         error.copy_from(&d);
     }
 
@@ -49,7 +48,7 @@ where
         jacobian.fill_with_identity();
 
         let v0: &SE2<R> = variables.get(self.keys()[0]).unwrap();
-        let th = -R::from_f64(v0.origin.log()[2]).unwrap();
+        let th = -v0.origin.rotation.angle();
         let R_inv =
             -matrix![ComplexField::cos(th), -ComplexField::sin(th); ComplexField::sin(th), ComplexField::cos(th) ].transpose();
         jacobian.view_mut((0, 0), (2, 2)).copy_from(&R_inv);

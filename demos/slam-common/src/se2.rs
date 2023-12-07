@@ -1,7 +1,5 @@
-use std::marker::PhantomData;
-
-use nalgebra::{DVector, DVectorView, DVectorViewMut, SMatrix, Vector2, Vector3};
-use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
+use manif::{se2::SE2Tangent, LieGroupBase, TangentBase};
+use nalgebra::{convert, DVectorView, DVectorViewMut, Isometry2, Vector2, Vector3, VectorView3};
 
 use optigy::{core::variable::Variable, prelude::Real};
 
@@ -10,8 +8,7 @@ pub struct SE2<R = f64>
 where
     R: Real,
 {
-    pub origin: Isometry2,
-    __marker: PhantomData<R>,
+    pub origin: Isometry2<R>,
 }
 
 impl<R> Variable<R> for SE2<R>
@@ -23,14 +20,10 @@ where
     where
         R: Real,
     {
-        // let d = (self.origin.inverse().multiply(&value.origin)).log();
-        let d = (linearization_point.origin.inverse().multiply(&self.origin)).log();
-        // let translation = d.translation;
-        // let subgroup_params = d.rotation;
-        // let subgroup_tangent = subgroup_params.log();
-        // let d = self.pose.clone() - value.pose.clone();
-        let l = DVector::<R>::from_column_slice(d.cast::<R>().as_slice());
-        tangent.copy_from(&l);
+        let d = (linearization_point.origin.inverse() * &self.origin)
+            .log_map()
+            .0;
+        tangent.copy_from(&d);
     }
 
     //self is linearization point
@@ -38,11 +31,8 @@ where
     where
         R: Real,
     {
-        self.origin = self.origin.clone().multiply(&Isometry2::exp(&Vector3::new(
-            delta[0].to_f64().unwrap(),
-            delta[1].to_f64().unwrap(),
-            delta[2].to_f64().unwrap(),
-        )));
+        let t: Vector3<R> = VectorView3::<R>::from(&delta).clone_owned();
+        self.origin = self.origin * SE2Tangent(t).exp_map();
     }
 
     fn dim(&self) -> usize {
@@ -59,13 +49,7 @@ where
 {
     pub fn new(x: f64, y: f64, theta: f64) -> Self {
         SE2 {
-            origin: Isometry2::from_t_and_subgroup(
-                &Vector2::new(x, y),
-                &Rotation2::exp(&SMatrix::<f64, 1, 1>::from_column_slice(
-                    vec![theta].as_slice(),
-                )),
-            ),
-            __marker: PhantomData,
+            origin: Isometry2::new(Vector2::new(convert(x), convert(y)), convert(theta)),
         }
     }
 }

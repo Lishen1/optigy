@@ -1,7 +1,5 @@
-use std::marker::PhantomData;
-
-use nalgebra::{DMatrixViewMut, DVectorViewMut, SMatrix, Vector2};
-use sophus_rs::lie::rotation2::{Isometry2, Rotation2};
+use manif::LieGroupBase;
+use nalgebra::{convert, DMatrixViewMut, DVectorViewMut, Isometry2, Vector2};
 
 use optigy::core::{
     factor::Factor,
@@ -21,9 +19,8 @@ where
     LF: LossFunction<R>,
 {
     pub keys: Vec<Vkey>,
-    pub origin: Isometry2,
+    pub origin: Isometry2<R>,
     pub loss: Option<LF>,
-    __marker: PhantomData<R>,
 }
 impl<LF, R> PriorFactor<LF, R>
 where
@@ -34,24 +31,13 @@ where
         let keys = vec![key];
         PriorFactor {
             keys,
-            origin: Isometry2::from_t_and_subgroup(
-                &Vector2::new(x, y),
-                &Rotation2::exp(&SMatrix::<f64, 1, 1>::from_column_slice(
-                    vec![theta].as_slice(),
-                )),
-            ),
+            origin: Isometry2::new(Vector2::new(convert(x), convert(y)), convert(theta)),
             loss,
-            __marker: PhantomData,
         }
     }
-    pub fn from_se2(key: Vkey, origin: Isometry2, loss: Option<LF>) -> Self {
+    pub fn from_se2(key: Vkey, origin: Isometry2<R>, loss: Option<LF>) -> Self {
         let keys = vec![key];
-        PriorFactor {
-            keys,
-            origin,
-            loss,
-            __marker: PhantomData,
-        }
+        PriorFactor { keys, origin, loss }
     }
 }
 impl<LF, R> Factor<R> for PriorFactor<LF, R>
@@ -65,8 +51,8 @@ where
         C: VariablesContainer<R>,
     {
         let v0: &SE2<R> = variables.get(self.keys()[0]).unwrap();
-        let diff = (self.origin.inverse().multiply(&v0.origin)).log();
-        error.copy_from(&diff.cast::<R>());
+        let diff = (self.origin.inverse() * &v0.origin).log_map().0;
+        error.copy_from(&diff);
     }
 
     fn jacobian<C>(&self, _variables: &Variables<C, R>, mut jacobian: DMatrixViewMut<R>)
