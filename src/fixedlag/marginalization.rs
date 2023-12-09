@@ -1,7 +1,9 @@
+use faer_core::Matrix;
 use nalgebra::{
     ComplexField, DMatrix, DMatrixView, DMatrixViewMut, DVector, DVectorViewMut,
     PermutationSequence, RawStorage, RealField,
 };
+use nalgebra_sparse::{pattern::SparsityPattern, CscMatrix};
 
 use crate::{
     core::{
@@ -10,7 +12,10 @@ use crate::{
         variables_container::VariablesContainer, Real,
     },
     nonlinear::{
-        linearization::linearzation_jacobian, sparsity_pattern::construct_jacobian_sparsity,
+        linearization::{linearization_hessian, linearzation_jacobian},
+        sparsity_pattern::{
+            construct_hessian_sparsity, construct_jacobian_sparsity, HessianTriangle,
+        },
     },
 };
 #[derive(Clone)]
@@ -375,14 +380,34 @@ where
     let mn_factors = Factors::from_connected_factors(factors, m_keys);
     let mn_variables = Variables::from_variables(variables, &mn_keys);
 
-    let jsparsity =
-        construct_jacobian_sparsity(&mn_factors, &mn_variables, &VariableOrdering::new(&mn_keys));
-    let mut jA = DMatrix::<R>::zeros(jsparsity.base.A_rows, jsparsity.base.A_cols);
-    let mut jb = DVector::<R>::zeros(jsparsity.base.A_rows);
-    linearzation_jacobian(&mn_factors, &mn_variables, &jsparsity, &mut jA, &mut jb);
-
-    let H = jA.transpose() * jA.clone();
-    let b = jA.transpose() * jb;
+    let sparsity = construct_hessian_sparsity(
+        &mn_factors,
+        &mn_variables,
+        &VariableOrdering::new(&mn_keys),
+        HessianTriangle::Upper,
+    );
+    let mut H = Vec::<R>::with_capacity(sparsity.total_nnz_AtA_cols);
+    H.resize(sparsity.total_nnz_AtA_cols, R::zero());
+    let mut b = DVector::<R>::zeros(sparsity.base.A_cols);
+    linearization_hessian(&mn_factors, &mn_variables, &sparsity, &mut H, &mut b);
+    let csc_pattern = SparsityPattern::try_from_offsets_and_indices(
+        sparsity.base.A_cols,
+        sparsity.base.A_cols,
+        sparsity.outer_index.clone(),
+        sparsity.inner_index.clone(),
+    )
+    .unwrap();
+    let H = CscMatrix::try_from_pattern_and_values(csc_pattern.clone(), H.clone())
+        .expect("CSC data must conform to format specifications");
+    let mut H = DMatrix::<R>::from(&H);
+    for r in 0..H.nrows() {
+        for c in r..H.nrows() {
+            if r == c {
+                continue;
+            }
+            H[(c, r)] = H[(r, c)];
+        }
+    }
 
     let m_f = 0_usize;
     let m_cnt = m_keys
