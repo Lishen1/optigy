@@ -12,6 +12,7 @@ use optigy::{
     prelude::{Variables, Vkey},
     // slam::{between_factor::BetweenFactor, se3::SE2},
 };
+use slam_common::{between_factor::BetweenFactor, se2::SE2};
 
 fn lower_hessian_sparsity(c: &mut Criterion) {
     let container = ().and_variable::<SE2>();
