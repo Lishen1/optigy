@@ -229,9 +229,9 @@ where
         for key in &self.variables_to_marginalize {
             Self::remove_variable_immediately(*key, &mut self.factors, &mut self.variables);
         }
+        self.variables_to_marginalize.clear();
 
         if let Some(marg_prior) = marg_prior {
-            self.variables_to_marginalize.clear();
             self.factors.add(marg_prior);
         }
     }
