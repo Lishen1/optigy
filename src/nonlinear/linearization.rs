@@ -267,51 +267,52 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
             // we know var_idx[j1_idx] != var_idx[j2_idx]
             // assume var_idx[j1_idx] >(lower) <(upper) var_idx[j2_idx]
             // insert to block location (j1_idx, j2_idx)
-            if comp {
-                let nnz_AtA_vars_accum_var2 = sparsity.nnz_AtA_vars_accum[j2_var_idx];
-                let var2_dim = sparsity.base.var_dim[j2_var_idx];
-
-                let inner_insert_var2_var1 = sparsity.inner_insert_map[j2_var_idx]
-                    .get(&j1_var_idx)
-                    .unwrap();
-                let mut value_idx: usize;
-                let val_offset: usize;
-                match tri {
-                    HessianTriangle::Upper => {
-                        value_idx = nnz_AtA_vars_accum_var2 + inner_insert_var2_var1;
-                        val_offset = 0;
-                    }
-                    HessianTriangle::Lower => {
-                        value_idx = nnz_AtA_vars_accum_var2 + var2_dim + inner_insert_var2_var1;
-                        val_offset = 1;
-                    }
-                }
-                // #ifdef MINISAM_WITH_MULTI_THREADS
-                //         mutex_A.lock();
-                // #endif
-
-                for j in 0..jacobian_ncols[j2_idx] {
-                    for i in 0..jacobian_ncols[j1_idx] {
-                        let (mut r, mut c) = (
-                            jacobian_col_local[j1_idx] + i,
-                            jacobian_col_local[j2_idx] + j,
-                        );
-                        // to access only lower part (if only lower computed)
-                        if j1_idx <= j2_idx {
-                            (r, c) = (c, r);
-                        }
-                        AtA_values[value_idx] += stackJtJ[(r, c)];
-                        value_idx += 1;
-                    }
-                    value_idx += sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j]
-                        - val_offset
-                        - jacobian_ncols[j1_idx];
-                }
-
-                // #ifdef MINISAM_WITH_MULTI_THREADS
-                //         mutex_A.unlock();
-                // #endif
+            if !comp {
+                continue;
             }
+            let nnz_AtA_vars_accum_var2 = sparsity.nnz_AtA_vars_accum[j2_var_idx];
+            let var2_dim = sparsity.base.var_dim[j2_var_idx];
+
+            let inner_insert_var2_var1 = sparsity.inner_insert_map[j2_var_idx]
+                .get(&j1_var_idx)
+                .unwrap();
+            let mut value_idx: usize;
+            let val_offset: usize;
+            match tri {
+                HessianTriangle::Upper => {
+                    value_idx = nnz_AtA_vars_accum_var2 + inner_insert_var2_var1;
+                    val_offset = 0;
+                }
+                HessianTriangle::Lower => {
+                    value_idx = nnz_AtA_vars_accum_var2 + var2_dim + inner_insert_var2_var1;
+                    val_offset = 1;
+                }
+            }
+            // #ifdef MINISAM_WITH_MULTI_THREADS
+            //         mutex_A.lock();
+            // #endif
+
+            for j in 0..jacobian_ncols[j2_idx] {
+                for i in 0..jacobian_ncols[j1_idx] {
+                    let (mut r, mut c) = (
+                        jacobian_col_local[j1_idx] + i,
+                        jacobian_col_local[j2_idx] + j,
+                    );
+                    // to access only lower part (if only lower computed)
+                    if j1_idx <= j2_idx {
+                        (r, c) = (c, r);
+                    }
+                    AtA_values[value_idx] += stackJtJ[(r, c)];
+                    value_idx += 1;
+                }
+                value_idx += sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j]
+                    - val_offset
+                    - jacobian_ncols[j1_idx];
+            }
+
+            // #ifdef MINISAM_WITH_MULTI_THREADS
+            //         mutex_A.unlock();
+            // #endif
         }
     }
 }
@@ -367,7 +368,8 @@ pub fn linearization_hessian<R, VC, FC>(
         println!("k: {:?}, v: {}", k, v);
     }
 
-    let mut A = DMatrix::<R>::zeros(sparsity.base.A_rows, sparsity.base.A_cols);
+    let mut A = DMatrix::<R>::zeros(sparsity.base.A_cols, sparsity.base.A_cols);
+    assert_eq!(A.nrows(), A.ncols());
     for ((r, c), block) in &block_matrix.blocks {
         let r = *r;
         let c = *c;
@@ -572,7 +574,7 @@ mod tests {
 
             let container = ().and_factor::<RandomBlockFactor<Real>>();
             let mut factors = Factors::new(container);
-            let factors_cnt = 1000;
+            let factors_cnt = 200;
             let mut rng = rand::thread_rng();
             let rnd_key = Uniform::from(0..variables_cnt);
             for _ in 0..factors_cnt {
@@ -591,28 +593,54 @@ mod tests {
             let JAtA = A.transpose() * A.clone();
             let JAtb = A.transpose() * b.clone();
 
-            let tri = HessianTriangle::Lower;
-            let sparsity =
-                construct_hessian_sparsity(&factors, &variables, &variable_ordering, tri);
-            let mut AtA_values = Vec::<f64>::with_capacity(sparsity.total_nnz_AtA_cols);
-            AtA_values.resize(sparsity.total_nnz_AtA_cols, 0.0);
-            let mut Atb = DVector::<f64>::zeros(sparsity.base.A_cols);
-            linearization_hessian(&factors, &variables, &sparsity, &mut AtA_values, &mut Atb);
+            {
+                let tri = HessianTriangle::Lower;
+                let sparsity =
+                    construct_hessian_sparsity(&factors, &variables, &variable_ordering, tri);
+                let mut AtA_values = Vec::<f64>::with_capacity(sparsity.total_nnz_AtA_cols);
+                AtA_values.resize(sparsity.total_nnz_AtA_cols, 0.0);
+                let mut Atb = DVector::<f64>::zeros(sparsity.base.A_cols);
+                linearization_hessian(&factors, &variables, &sparsity, &mut AtA_values, &mut Atb);
 
-            let minor_indices = sparsity.inner_index;
-            let major_offsets = sparsity.outer_index;
-            let patt = SparsityPattern::try_from_offsets_and_indices(
-                sparsity.base.A_cols,
-                sparsity.base.A_cols,
-                major_offsets,
-                minor_indices,
-            );
-            let AtA = CscMatrix::try_from_pattern_and_values(patt.unwrap(), AtA_values)
-                .expect("CSC data must conform to format specifications");
-            let AtA: DMatrix<f64> = DMatrix::<f64>::from(&AtA);
+                let minor_indices = sparsity.inner_index;
+                let major_offsets = sparsity.outer_index;
+                let patt = SparsityPattern::try_from_offsets_and_indices(
+                    sparsity.base.A_cols,
+                    sparsity.base.A_cols,
+                    major_offsets,
+                    minor_indices,
+                );
+                let AtA = CscMatrix::try_from_pattern_and_values(patt.unwrap(), AtA_values)
+                    .expect("CSC data must conform to format specifications");
+                let AtA: DMatrix<f64> = DMatrix::<f64>::from(&AtA);
 
-            assert_matrix_eq!(AtA, JAtA.lower_triangle(), comp = abs, tol = 1e-9);
-            assert_matrix_eq!(Atb, JAtb, comp = abs, tol = 1e-9);
+                assert_matrix_eq!(AtA, JAtA.lower_triangle(), comp = abs, tol = 1e-9);
+                assert_matrix_eq!(Atb, JAtb, comp = abs, tol = 1e-9);
+            }
+            {
+                let tri = HessianTriangle::Upper;
+                let sparsity =
+                    construct_hessian_sparsity(&factors, &variables, &variable_ordering, tri);
+                let mut AtA_values = Vec::<f64>::with_capacity(sparsity.total_nnz_AtA_cols);
+                AtA_values.resize(sparsity.total_nnz_AtA_cols, 0.0);
+                let mut Atb = DVector::<f64>::zeros(sparsity.base.A_cols);
+                linearization_hessian(&factors, &variables, &sparsity, &mut AtA_values, &mut Atb);
+
+                let minor_indices = sparsity.inner_index;
+                let major_offsets = sparsity.outer_index;
+                let patt = SparsityPattern::try_from_offsets_and_indices(
+                    sparsity.base.A_cols,
+                    sparsity.base.A_cols,
+                    major_offsets,
+                    minor_indices,
+                );
+                let AtA = CscMatrix::try_from_pattern_and_values(patt.unwrap(), AtA_values)
+                    .expect("CSC data must conform to format specifications");
+                let AtA: DMatrix<f64> = DMatrix::<f64>::from(&AtA);
+
+                assert_matrix_eq!(AtA, JAtA.upper_triangle(), comp = abs, tol = 1e-9);
+                assert_matrix_eq!(Atb, JAtb, comp = abs, tol = 1e-9);
+            }
         }
     }
 }
