@@ -331,7 +331,6 @@ pub fn linearization_hessian<R, VC, FC>(
     FC: FactorsContainer<R>,
 {
     let mut block_matrix = BlockMatrix::<R>::default();
-    let tri = sparsity.tri;
     for i in 0..sparsity.base.var_ordering.len() {
         let k = sparsity.base.var_ordering.key(i).unwrap();
         let dim = variables.dim_at(k).unwrap();
@@ -343,21 +342,9 @@ pub fn linearization_hessian<R, VC, FC>(
         for j in &sparsity.corl_vars[i] {
             let dim_j = sparsity.base.var_dim[*j];
             let col_j = sparsity.base.var_col[*j];
-            // block_matrix
-            //     .blocks
-            //     .insert((col_i, col_j), DMatrix::<R>::zeros(dim_i, dim_j));
-            // block_matrix
-            //     .blocks
-            //     .insert((col_j, col_i), DMatrix::<R>::zeros(dim_j, dim_i));
-
-            let (r, c, nr, nc) = match tri {
-                HessianTriangle::Upper => (col_i, col_j, dim_i, dim_j),
-                HessianTriangle::Lower => (col_j, col_i, dim_j, dim_i),
-            };
-
             block_matrix
                 .blocks
-                .insert((r, c), DMatrix::<R>::zeros(nr, nc));
+                .insert((col_j, col_i), DMatrix::<R>::zeros(dim_j, dim_i));
         }
         println!(
             "idx: {} key: {:?} dim: {}, var_dim: {} vcol: {}",
@@ -499,7 +486,8 @@ mod tests {
         let _csc_d: DMatrix<f64> = DMatrix::<f64>::from(&csc);
         // assert_matrix_eq!(csc, dense);
         // println!("csc {}", csc_d);
-        let tri = HessianTriangle::Lower;
+        // let tri = HessianTriangle::Lower;
+        let tri = HessianTriangle::Upper;
         let sparsity = construct_hessian_sparsity(&factors, &variables, &variable_ordering, tri);
         println!("corl vars {:?}", sparsity.corl_vars);
         println!("inner map {:?}", sparsity.inner_insert_map);
