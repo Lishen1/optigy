@@ -85,7 +85,7 @@ pub fn linearzation_jacobian<R, VC, FC>(
         err_row_counter += f_dim;
     }
 }
-fn linearize_hessian_single_factor<F, VC, T>(
+pub fn linearize_hessian_single_factor<F, VC, T>(
     factor: &F,
     variables: &Variables<VC, T>,
     sparsity: &HessianSparsityPattern,
@@ -447,9 +447,10 @@ pub fn linearization_hessian<R, VC, FC>(
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
-    for f_index in 0..factors.len() {
-        linearzation_hessian_single_factor(f_index, factors, variables, sparsity, AtA_values, Atb);
-    }
+    // for f_index in 0..factors.len() {
+    //     linearzation_hessian_single_factor(f_index, factors, variables, sparsity, AtA_values, Atb);
+    // }
+    factors.linearize_hessian(variables, sparsity, AtA_values, Atb);
 }
 
 #[allow(non_snake_case)]

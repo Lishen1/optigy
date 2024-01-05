@@ -1,4 +1,6 @@
 use crate::core::factor::Factor;
+use crate::nonlinear::linearization::linearize_hessian_single_factor;
+use crate::nonlinear::sparsity_pattern::HessianSparsityPattern;
 use core::any::TypeId;
 
 use core::mem;
@@ -10,6 +12,7 @@ use super::loss_function::LossFunction;
 use super::variables::Variables;
 use super::variables_container::VariablesContainer;
 use super::Real;
+use nalgebra::DVector;
 
 pub trait FactorsKey<R = f64>: Clone
 where
@@ -124,12 +127,13 @@ where
     ) where
         C: FactorsContainer<R>;
     fn linearize_hessian<C>(
-        variables: &Variables<C, T>,
+        &self,
+        variables: &Variables<C, R>,
         sparsity: &HessianSparsityPattern,
         hessian_values: &mut [R],
         gradient: &mut DVector<R>,
     ) where
-        C: VariablesContainer<T>;
+        C: VariablesContainer<R>;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -238,12 +242,13 @@ where
     }
 
     fn linearize_hessian<C>(
-        variables: &Variables<C, T>,
+        &self,
+        variables: &Variables<C, R>,
         sparsity: &HessianSparsityPattern,
         hessian_values: &mut [R],
         gradient: &mut DVector<R>,
     ) where
-        C: VariablesContainer<T>,
+        C: VariablesContainer<R>,
     {
     }
 }
@@ -475,16 +480,19 @@ where
     }
 
     fn linearize_hessian<C>(
-        variables: &Variables<C, T>,
+        &self,
+        variables: &Variables<C, R>,
         sparsity: &HessianSparsityPattern,
         hessian_values: &mut [R],
         gradient: &mut DVector<R>,
     ) where
-        C: VariablesContainer<T>,
+        C: VariablesContainer<R>,
     {
         for f in &self.data {
-            linearize_hessian_single_factor();
+            linearize_hessian_single_factor(f, variables, sparsity, hessian_values, gradient);
         }
+        self.parent
+            .linearize_hessian(variables, sparsity, hessian_values, gradient);
     }
 }
 

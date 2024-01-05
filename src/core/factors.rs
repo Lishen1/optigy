@@ -1,6 +1,6 @@
 use nalgebra::{DMatrixViewMut, DVector, DVectorViewMut, RealField};
 
-use crate::core::variables::Variables;
+use crate::{core::variables::Variables, nonlinear::sparsity_pattern::HessianSparsityPattern};
 use core::marker::PhantomData;
 
 use super::{
@@ -262,6 +262,18 @@ where
             }
         }
         neighborhood
+    }
+    pub fn linearize_hessian<VC>(
+        &self,
+        variables: &Variables<VC, R>,
+        sparsity: &HessianSparsityPattern,
+        hessian_values: &mut [R],
+        gradient: &mut DVector<R>,
+    ) where
+        VC: VariablesContainer<R>,
+    {
+        self.container
+            .linearize_hessian(variables, sparsity, hessian_values, gradient);
     }
 }
 #[cfg(test)]
