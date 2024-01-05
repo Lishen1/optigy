@@ -331,6 +331,7 @@ pub fn linearization_hessian<R, VC, FC>(
     FC: FactorsContainer<R>,
 {
     let mut block_matrix = BlockMatrix::<R>::default();
+    let tri = sparsity.tri;
     for i in 0..sparsity.base.var_ordering.len() {
         let k = sparsity.base.var_ordering.key(i).unwrap();
         let dim = variables.dim_at(k).unwrap();
@@ -345,9 +346,18 @@ pub fn linearization_hessian<R, VC, FC>(
             // block_matrix
             //     .blocks
             //     .insert((col_i, col_j), DMatrix::<R>::zeros(dim_i, dim_j));
+            // block_matrix
+            //     .blocks
+            //     .insert((col_j, col_i), DMatrix::<R>::zeros(dim_j, dim_i));
+
+            let (r, c, nr, nc) = match tri {
+                HessianTriangle::Upper => (col_i, col_j, dim_i, dim_j),
+                HessianTriangle::Lower => (col_j, col_i, dim_j, dim_i),
+            };
+
             block_matrix
                 .blocks
-                .insert((col_j, col_i), DMatrix::<R>::zeros(dim_j, dim_i));
+                .insert((r, c), DMatrix::<R>::zeros(nr, nc));
         }
         println!(
             "idx: {} key: {:?} dim: {}, var_dim: {} vcol: {}",
