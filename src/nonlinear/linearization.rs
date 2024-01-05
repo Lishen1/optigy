@@ -103,7 +103,6 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     factors: &Factors<FC, R>,
     variables: &Variables<VC, R>,
     sparsity: &HessianSparsityPattern,
-    AtA_values: &mut [R],
     Atb: &mut DVector<R>,
     block_matrix: &mut BlockMatrix<R>,
 ) where
@@ -236,10 +235,6 @@ pub fn linearization_hessian<R, VC, FC>(
                 .blocks
                 .insert((col_j, col_i), DMatrix::<R>::zeros(dim_j, dim_i));
         }
-        // println!(
-        //     "idx: {} key: {:?} dim: {}, var_dim: {} vcol: {}",
-        //     i, k, dim, dim_i, col_i
-        // );
     }
     for f_index in 0..factors.len() {
         linearzation_hessian_single_factor(
@@ -247,16 +242,10 @@ pub fn linearization_hessian<R, VC, FC>(
             factors,
             variables,
             sparsity,
-            AtA_values,
             Atb,
             &mut block_matrix,
         );
     }
-
-    // for (k, v) in &block_matrix.blocks {
-    //     println!("k: {:?}, v: {}", k, v);
-    // }
-
     let mut A = DMatrix::<R>::zeros(sparsity.base.A_cols, sparsity.base.A_cols);
     assert_eq!(A.nrows(), A.ncols());
     for ((r, c), block) in &block_matrix.blocks {
@@ -565,7 +554,7 @@ mod tests {
 
             let container = ().and_factor::<RandomBlockFactor<Real>>();
             let mut factors = Factors::new(container);
-            let factors_cnt = 500;
+            let factors_cnt = 800;
             let mut rng = rand::thread_rng();
             let rnd_key = Uniform::from(0..variables_cnt);
             for _ in 0..factors_cnt {
