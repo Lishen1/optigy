@@ -85,6 +85,17 @@ pub fn linearzation_jacobian<R, VC, FC>(
     }
 }
 
+pub struct BlockMatrix<T: Real> {
+    pub blocks: std::collections::HashMap<(usize, usize), DMatrix<T>>,
+}
+impl<T: Real> Default for BlockMatrix<T> {
+    fn default() -> Self {
+        BlockMatrix {
+            blocks: std::collections::HashMap::default(),
+        }
+    }
+}
+
 #[allow(non_snake_case)]
 #[inline(always)]
 fn linearzation_hessian_single_factor<R, VC, FC>(
@@ -94,6 +105,7 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     sparsity: &HessianSparsityPattern,
     AtA_values: &mut [R],
     Atb: &mut DVector<R>,
+    block_matrix: &mut BlockMatrix<R>,
 ) where
     R: Real,
     VC: VariablesContainer<R>,
@@ -161,6 +173,46 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     for j_idx in 0..f_len {
         Atb.rows_mut(jacobian_col[j_idx], jacobian_ncols[j_idx])
             .add_assign(&stackJtb.rows(jacobian_col_local[j_idx], jacobian_ncols[j_idx]));
+    }
+    for j1_idx in 0..f_len {
+        let j1_var_idx = var_idx[j1_idx];
+        for j2_idx in 0..f_len {
+            let j2_var_idx = var_idx[j2_idx];
+            let comp = match tri {
+                HessianTriangle::Upper => j1_var_idx < j2_var_idx,
+                HessianTriangle::Lower => j1_var_idx > j2_var_idx,
+            };
+            if !comp {
+                continue;
+            }
+            block_matrix
+                .blocks
+                .get_mut(&(jacobian_col[j1_idx], jacobian_col[j2_idx]))
+                .unwrap()
+                .add_assign(&stackJtJ.view(
+                    (jacobian_col_local[j1_idx], jacobian_col_local[j2_idx]),
+                    (jacobian_ncols[j1_idx], jacobian_ncols[j2_idx]),
+                ));
+        }
+    }
+    println!("-----factor------");
+    for j_idx in 0..f_len {
+        println!(
+            "col: {} ncols: {}",
+            jacobian_col[j_idx], jacobian_ncols[j_idx]
+        );
+    }
+    for j_idx in 0..f_len {
+        // scan by row
+        let nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
+        let j_col_local = jacobian_col_local[j_idx];
+        let j_ncols = jacobian_ncols[j_idx];
+        let j_col = jacobian_col[j_idx];
+        block_matrix
+            .blocks
+            .get_mut(&(j_col, j_col))
+            .unwrap()
+            .add_assign(&stackJtJ.view((j_col_local, j_col_local), (j_ncols, j_ncols)));
     }
 
     // #ifdef MINISAM_WITH_MULTI_THREADS
@@ -278,9 +330,55 @@ pub fn linearization_hessian<R, VC, FC>(
     VC: VariablesContainer<R>,
     FC: FactorsContainer<R>,
 {
-    for f_index in 0..factors.len() {
-        linearzation_hessian_single_factor(f_index, factors, variables, sparsity, AtA_values, Atb);
+    let mut block_matrix = BlockMatrix::<R>::default();
+    for i in 0..sparsity.base.var_ordering.len() {
+        let k = sparsity.base.var_ordering.key(i).unwrap();
+        let dim = variables.dim_at(k).unwrap();
+        let col_i = sparsity.base.var_col[i];
+        let dim_i = sparsity.base.var_dim[i];
+        block_matrix
+            .blocks
+            .insert((col_i, col_i), DMatrix::<R>::zeros(dim_i, dim_i));
+        for j in &sparsity.corl_vars[i] {
+            let dim_j = sparsity.base.var_dim[*j];
+            let col_j = sparsity.base.var_col[*j];
+            // block_matrix
+            //     .blocks
+            //     .insert((col_i, col_j), DMatrix::<R>::zeros(dim_i, dim_j));
+            block_matrix
+                .blocks
+                .insert((col_j, col_i), DMatrix::<R>::zeros(dim_j, dim_i));
+        }
+        println!(
+            "idx: {} key: {:?} dim: {}, var_dim: {} vcol: {}",
+            i, k, dim, dim_i, col_i
+        );
     }
+    for f_index in 0..factors.len() {
+        linearzation_hessian_single_factor(
+            f_index,
+            factors,
+            variables,
+            sparsity,
+            AtA_values,
+            Atb,
+            &mut block_matrix,
+        );
+    }
+
+    for (k, v) in &block_matrix.blocks {
+        println!("k: {:?}, v: {}", k, v);
+    }
+
+    let mut A = DMatrix::<R>::zeros(sparsity.base.A_rows, sparsity.base.A_cols);
+    for ((r, c), block) in &block_matrix.blocks {
+        let r = *r;
+        let c = *c;
+        let nrows = block.nrows();
+        let ncols = block.ncols();
+        A.view_mut((r, c), (nrows, ncols)).copy_from(&block);
+    }
+    println!("A: {}", A);
 }
 
 #[allow(non_snake_case)]
@@ -422,6 +520,45 @@ mod tests {
         // assert_matrix_eq!(csc, dense);
         println!("AtA {}", AtA);
         // println!("Atb {}", Atb);
+    }
+    #[test]
+    #[allow(non_snake_case)]
+    fn linearize_hessian_1() {
+        type Real = f64;
+        let container = ().and_variable::<VariableA<Real>>().and_variable::<VariableB<Real>>();
+        let mut variables = Variables::new(container);
+        variables.add(Vkey(0), VariableA::<Real>::new(1.0));
+        variables.add(Vkey(1), VariableB::<Real>::new(5.0));
+        variables.add(Vkey(2), VariableB::<Real>::new(10.0));
+
+        let container = ().and_factor::<FactorA<Real>>().and_factor::<FactorB<Real>>();
+        let mut factors = Factors::new(container);
+        factors.add(FactorA::new(1.0, None, Vkey(0), Vkey(1)));
+        factors.add(FactorB::new(2.0, None, Vkey(1), Vkey(2)));
+        let variable_ordering = variables.default_variable_ordering();
+        let tri = HessianTriangle::Lower;
+        let sparsity = construct_hessian_sparsity(&factors, &variables, &variable_ordering, tri);
+        println!("corl vars {:?}", sparsity.corl_vars);
+        println!("inner map {:?}", sparsity.inner_insert_map);
+        let mut AtA_values = Vec::<f64>::with_capacity(sparsity.total_nnz_AtA_cols);
+        AtA_values.resize(sparsity.total_nnz_AtA_cols, 0.0);
+        let mut Atb = DVector::<f64>::zeros(sparsity.base.A_cols);
+        linearization_hessian(&factors, &variables, &sparsity, &mut AtA_values, &mut Atb);
+        let minor_indices = sparsity.inner_index;
+        let major_offsets = sparsity.outer_index;
+        println!("minor_indeces: {:?}", minor_indices);
+        println!("major_ossets: {:?}", major_offsets);
+        let patt = SparsityPattern::try_from_offsets_and_indices(
+            sparsity.base.A_cols,
+            sparsity.base.A_cols,
+            major_offsets,
+            minor_indices,
+        );
+        let AtA = CscMatrix::try_from_pattern_and_values(patt.unwrap(), AtA_values)
+            .expect("CSC data must conform to format specifications");
+        let AtA: DMatrix<f64> = DMatrix::<f64>::from(&AtA);
+        // assert_matrix_eq!(csc, dense);
+        println!("AtA {}", AtA);
     }
     #[test]
     #[allow(non_snake_case)]

@@ -103,6 +103,7 @@ pub(crate) mod tests {
     };
 
     use nalgebra::{DMatrix, DMatrixViewMut, DVector, DVectorViewMut, Matrix3};
+    use rand::Rng;
 
     #[derive(Clone)]
     pub struct FactorA<R>
@@ -236,10 +237,12 @@ pub(crate) mod tests {
         R: Real,
     {
         pub fn new(var0: Vkey, var1: Vkey) -> Self {
-            let _rng = rand::thread_rng();
-            let _jacobians = Vec::<DMatrix<R>>::with_capacity(2);
+            let mut rng = rand::thread_rng();
             let keys = vec![var0, var1];
-            let jacobian = DMatrix::<R>::from_fn(3, 3 * keys.len(), |_i, _j| R::one());
+            // let jacobian = DMatrix::<R>::from_fn(3, 3 * keys.len(), |_i, _j| R::one());
+            let jacobian = DMatrix::<R>::from_fn(3, 3 * keys.len(), |_i, _j| {
+                R::from_f64(rng.gen::<f64>()).unwrap()
+            });
             RandomBlockFactor {
                 loss: None,
                 jacobian,
