@@ -85,7 +85,7 @@ pub fn linearzation_jacobian<R, VC, FC>(
         err_row_counter += f_dim;
     }
 }
-fn linearze_hessian_single_factor<F, VC, T>(
+fn linearize_hessian_single_factor<F, VC, T>(
     factor: &F,
     variables: &Variables<VC, T>,
     sparsity: &HessianSparsityPattern,

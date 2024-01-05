@@ -123,6 +123,13 @@ where
         init: usize,
     ) where
         C: FactorsContainer<R>;
+    fn linearize_hessian<C>(
+        variables: &Variables<C, T>,
+        sparsity: &HessianSparsityPattern,
+        hessian_values: &mut [R],
+        gradient: &mut DVector<R>,
+    ) where
+        C: VariablesContainer<T>;
 }
 
 /// The base case for recursive variadics: no fields.
@@ -228,6 +235,16 @@ where
         C: VariablesContainer<R>,
     {
         false
+    }
+
+    fn linearize_hessian<C>(
+        variables: &Variables<C, T>,
+        sparsity: &HessianSparsityPattern,
+        hessian_values: &mut [R],
+        gradient: &mut DVector<R>,
+    ) where
+        C: VariablesContainer<T>,
+    {
     }
 }
 
@@ -455,6 +472,19 @@ where
         }
         self.parent
             .add_connected_factor_to(factors, keys, indexes, init + self.data.len())
+    }
+
+    fn linearize_hessian<C>(
+        variables: &Variables<C, T>,
+        sparsity: &HessianSparsityPattern,
+        hessian_values: &mut [R],
+        gradient: &mut DVector<R>,
+    ) where
+        C: VariablesContainer<T>,
+    {
+        for f in &self.data {
+            linearize_hessian_single_factor();
+        }
     }
 }
 
