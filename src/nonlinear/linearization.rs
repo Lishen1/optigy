@@ -220,101 +220,101 @@ fn linearzation_hessian_single_factor<R, VC, FC>(
     //   mutex_A.lock();
     // #endif
 
-    for j_idx in 0..f_len {
-        // scan by row
-        let nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
-        let mut value_idx: usize = nnz_AtA_vars_accum_var;
-        let j_col_local = jacobian_col_local[j_idx];
-        let j_ncols = jacobian_ncols[j_idx];
-        let j_col = jacobian_col[j_idx];
-        for j in 0..j_ncols {
-            let i_range = match tri {
-                HessianTriangle::Upper => 0..j + 1,
-                HessianTriangle::Lower => j..j_ncols,
-            };
-            let fill = |values: &mut [R], idx: &mut usize| {
-                for i in i_range.clone() {
-                    values[*idx] += stackJtJ[(j_col_local + i, j_col_local + j)];
-                    *idx += 1;
-                }
-            };
-            match tri {
-                HessianTriangle::Upper => {
-                    value_idx += sparsity.nnz_AtA_cols[j_col + j] - j - 1;
-                    fill(AtA_values, &mut value_idx);
-                }
-                HessianTriangle::Lower => {
-                    fill(AtA_values, &mut value_idx);
-                    value_idx += sparsity.nnz_AtA_cols[j_col + j] + j - j_ncols;
-                }
-            }
-        }
-    }
+    // for j_idx in 0..f_len {
+    //     // scan by row
+    //     let nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
+    //     let mut value_idx: usize = nnz_AtA_vars_accum_var;
+    //     let j_col_local = jacobian_col_local[j_idx];
+    //     let j_ncols = jacobian_ncols[j_idx];
+    //     let j_col = jacobian_col[j_idx];
+    //     for j in 0..j_ncols {
+    //         let i_range = match tri {
+    //             HessianTriangle::Upper => 0..j + 1,
+    //             HessianTriangle::Lower => j..j_ncols,
+    //         };
+    //         let fill = |values: &mut [R], idx: &mut usize| {
+    //             for i in i_range.clone() {
+    //                 values[*idx] += stackJtJ[(j_col_local + i, j_col_local + j)];
+    //                 *idx += 1;
+    //             }
+    //         };
+    //         match tri {
+    //             HessianTriangle::Upper => {
+    //                 value_idx += sparsity.nnz_AtA_cols[j_col + j] - j - 1;
+    //                 fill(AtA_values, &mut value_idx);
+    //             }
+    //             HessianTriangle::Lower => {
+    //                 fill(AtA_values, &mut value_idx);
+    //                 value_idx += sparsity.nnz_AtA_cols[j_col + j] + j - j_ncols;
+    //             }
+    //         }
+    //     }
+    // }
 
     // #ifdef MINISAM_WITH_MULTI_THREADS
     //   mutex_A.unlock();
     // #endif
 
     // update lower/upper non-diag hessian blocks
-    for j1_idx in 0..f_len {
-        let j1_var_idx = var_idx[j1_idx];
-        for j2_idx in 0..f_len {
-            let j2_var_idx = var_idx[j2_idx];
-            let comp = match tri {
-                HessianTriangle::Upper => j1_var_idx < j2_var_idx,
-                HessianTriangle::Lower => j1_var_idx > j2_var_idx,
-            };
-            // we know var_idx[j1_idx] != var_idx[j2_idx]
-            // assume var_idx[j1_idx] >(lower) <(upper) var_idx[j2_idx]
-            // insert to block location (j1_idx, j2_idx)
-            if !comp {
-                continue;
-            }
-            let nnz_AtA_vars_accum_var2 = sparsity.nnz_AtA_vars_accum[j2_var_idx];
-            let var2_dim = sparsity.base.var_dim[j2_var_idx];
+    // for j1_idx in 0..f_len {
+    //     let j1_var_idx = var_idx[j1_idx];
+    //     for j2_idx in 0..f_len {
+    //         let j2_var_idx = var_idx[j2_idx];
+    //         let comp = match tri {
+    //             HessianTriangle::Upper => j1_var_idx < j2_var_idx,
+    //             HessianTriangle::Lower => j1_var_idx > j2_var_idx,
+    //         };
+    //         // we know var_idx[j1_idx] != var_idx[j2_idx]
+    //         // assume var_idx[j1_idx] >(lower) <(upper) var_idx[j2_idx]
+    //         // insert to block location (j1_idx, j2_idx)
+    //         if !comp {
+    //             continue;
+    //         }
+    //         let nnz_AtA_vars_accum_var2 = sparsity.nnz_AtA_vars_accum[j2_var_idx];
+    //         let var2_dim = sparsity.base.var_dim[j2_var_idx];
 
-            let inner_insert_var2_var1 = sparsity.inner_insert_map[j2_var_idx]
-                .get(&j1_var_idx)
-                .unwrap();
-            let mut value_idx: usize;
-            let val_offset: usize;
-            match tri {
-                HessianTriangle::Upper => {
-                    value_idx = nnz_AtA_vars_accum_var2 + inner_insert_var2_var1;
-                    val_offset = 0;
-                }
-                HessianTriangle::Lower => {
-                    value_idx = nnz_AtA_vars_accum_var2 + var2_dim + inner_insert_var2_var1;
-                    val_offset = 1;
-                }
-            }
-            // #ifdef MINISAM_WITH_MULTI_THREADS
-            //         mutex_A.lock();
-            // #endif
+    //         let inner_insert_var2_var1 = sparsity.inner_insert_map[j2_var_idx]
+    //             .get(&j1_var_idx)
+    //             .unwrap();
+    //         let mut value_idx: usize;
+    //         let val_offset: usize;
+    //         match tri {
+    //             HessianTriangle::Upper => {
+    //                 value_idx = nnz_AtA_vars_accum_var2 + inner_insert_var2_var1;
+    //                 val_offset = 0;
+    //             }
+    //             HessianTriangle::Lower => {
+    //                 value_idx = nnz_AtA_vars_accum_var2 + var2_dim + inner_insert_var2_var1;
+    //                 val_offset = 1;
+    //             }
+    //         }
+    //         // #ifdef MINISAM_WITH_MULTI_THREADS
+    //         //         mutex_A.lock();
+    //         // #endif
 
-            for j in 0..jacobian_ncols[j2_idx] {
-                for i in 0..jacobian_ncols[j1_idx] {
-                    let (mut r, mut c) = (
-                        jacobian_col_local[j1_idx] + i,
-                        jacobian_col_local[j2_idx] + j,
-                    );
-                    // to access only lower part (if only lower computed)
-                    if j1_idx <= j2_idx {
-                        (r, c) = (c, r);
-                    }
-                    AtA_values[value_idx] += stackJtJ[(r, c)];
-                    value_idx += 1;
-                }
-                value_idx += sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j]
-                    - val_offset
-                    - jacobian_ncols[j1_idx];
-            }
+    //         for j in 0..jacobian_ncols[j2_idx] {
+    //             for i in 0..jacobian_ncols[j1_idx] {
+    //                 let (mut r, mut c) = (
+    //                     jacobian_col_local[j1_idx] + i,
+    //                     jacobian_col_local[j2_idx] + j,
+    //                 );
+    //                 // to access only lower part (if only lower computed)
+    //                 if j1_idx <= j2_idx {
+    //                     (r, c) = (c, r);
+    //                 }
+    //                 AtA_values[value_idx] += stackJtJ[(r, c)];
+    //                 value_idx += 1;
+    //             }
+    //             value_idx += sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j]
+    //                 - val_offset
+    //                 - jacobian_ncols[j1_idx];
+    //         }
 
-            // #ifdef MINISAM_WITH_MULTI_THREADS
-            //         mutex_A.unlock();
-            // #endif
-        }
-    }
+    //         // #ifdef MINISAM_WITH_MULTI_THREADS
+    //         //         mutex_A.unlock();
+    //         // #endif
+    //     }
+    // }
 }
 
 /// Computes hessian of cost function such:
@@ -378,6 +378,105 @@ pub fn linearization_hessian<R, VC, FC>(
         A.view_mut((r, c), (nrows, ncols)).copy_from(&block);
     }
     println!("A: {}", A);
+
+    let variables_cnt = sparsity.base.var_ordering.len();
+    let mut jacobian_col = Vec::<usize>::with_capacity(variables_cnt);
+    let mut jacobian_col_local = Vec::<usize>::with_capacity(variables_cnt);
+    let mut jacobian_ncols = Vec::<usize>::with_capacity(variables_cnt);
+    let mut local_col: usize = 0;
+    for i in 0..variables_cnt {
+        let k = sparsity.base.var_ordering.key(i).unwrap();
+        // A col start index
+        // var_idx.push(i);
+        jacobian_col.push(sparsity.base.var_col[i]);
+        jacobian_col_local.push(local_col);
+        let var_dim = sparsity.base.var_dim[i];
+        jacobian_ncols.push(var_dim);
+        local_col += var_dim;
+    }
+    let tri = sparsity.tri;
+    for i in 0..variables_cnt {
+        let k = sparsity.base.var_ordering.key(i).unwrap();
+        let nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[i];
+        let mut value_idx: usize = nnz_AtA_vars_accum_var;
+        let j_col_local = jacobian_col_local[i];
+        let j_ncols = jacobian_ncols[i];
+        let j_col = jacobian_col[i];
+        let block = &block_matrix.blocks[&(j_col, j_col)];
+
+        for j in 0..j_ncols {
+            let i_range = match tri {
+                HessianTriangle::Upper => 0..j + 1,
+                HessianTriangle::Lower => j..j_ncols,
+            };
+            let fill = |values: &mut [R], idx: &mut usize| {
+                for i in i_range.clone() {
+                    values[*idx] += block[(i, j)];
+                    *idx += 1;
+                }
+            };
+            match tri {
+                HessianTriangle::Upper => {
+                    value_idx += sparsity.nnz_AtA_cols[j_col + j] - j - 1;
+                    fill(AtA_values, &mut value_idx);
+                }
+                HessianTriangle::Lower => {
+                    fill(AtA_values, &mut value_idx);
+                    value_idx += sparsity.nnz_AtA_cols[j_col + j] + j - j_ncols;
+                }
+            }
+        }
+    }
+
+    // update lower/upper non-diag hessian blocks
+    for j1_var_idx in 0..variables_cnt {
+        for j2_var_idx in 0..variables_cnt {
+            let comp = match tri {
+                HessianTriangle::Upper => j1_var_idx < j2_var_idx,
+                HessianTriangle::Lower => j1_var_idx > j2_var_idx,
+            };
+            // we know var_idx[j1_idx] != var_idx[j2_idx]
+            // assume var_idx[j1_idx] >(lower) <(upper) var_idx[j2_idx]
+            // insert to block location (j1_idx, j2_idx)
+            if !comp {
+                continue;
+            }
+            let nnz_AtA_vars_accum_var2 = sparsity.nnz_AtA_vars_accum[j2_var_idx];
+            let var2_dim = sparsity.base.var_dim[j2_var_idx];
+
+            let inner_insert_var2_var1 = sparsity.inner_insert_map[j2_var_idx]
+                .get(&j1_var_idx)
+                .unwrap();
+            let mut value_idx: usize;
+            let val_offset: usize;
+            match tri {
+                HessianTriangle::Upper => {
+                    value_idx = nnz_AtA_vars_accum_var2 + inner_insert_var2_var1;
+                    val_offset = 0;
+                }
+                HessianTriangle::Lower => {
+                    value_idx = nnz_AtA_vars_accum_var2 + var2_dim + inner_insert_var2_var1;
+                    val_offset = 1;
+                }
+            }
+            let block = &block_matrix.blocks[&(jacobian_col[j1_var_idx], jacobian_col[j2_var_idx])];
+
+            for j in 0..jacobian_ncols[j2_var_idx] {
+                for i in 0..jacobian_ncols[j1_var_idx] {
+                    let (mut r, mut c) = (i, j);
+                    // to access only lower part (if only lower computed)
+                    // if j1_var_idx <= j2_var_idx {
+                    //     (r, c) = (c, r);
+                    // }
+                    AtA_values[value_idx] += block[(r, c)];
+                    value_idx += 1;
+                }
+                value_idx += sparsity.nnz_AtA_cols[jacobian_col[j2_var_idx] + j]
+                    - val_offset
+                    - jacobian_ncols[j1_var_idx];
+            }
+        }
+    }
 }
 
 #[allow(non_snake_case)]
