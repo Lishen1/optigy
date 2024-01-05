@@ -1,6 +1,7 @@
 use nalgebra::DMatrixViewMut;
 use nalgebra::DVectorViewMut;
 
+use nalgebra::Dyn;
 use nalgebra::Vector2;
 
 use optigy::prelude::{
@@ -40,6 +41,8 @@ where
     R: Real,
 {
     type L = DiagonalLoss<R>;
+    type JCols = Dyn;
+    type JRows = Dyn;
     fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
     where
         C: VariablesContainer<R>,

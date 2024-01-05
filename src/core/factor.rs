@@ -4,6 +4,7 @@ use crate::core::variables::Variables;
 
 use nalgebra::DMatrixViewMut;
 use nalgebra::DVectorViewMut;
+use nalgebra::Dim;
 
 use super::variables_container::VariablesContainer;
 use super::Real;
@@ -13,6 +14,8 @@ where
     R: Real,
 {
     type L: LossFunction<R>;
+    type JCols: Dim;
+    type JRows: Dim;
     /// Computes value of factor function $f_i(\textbf{x})$.
     /// Dimension of $f_i(\textbf{x})$ must be equal to `dim()`.
     fn error<C>(&self, variables: &Variables<C, R>, error: DVectorViewMut<R>)
@@ -102,7 +105,7 @@ pub(crate) mod tests {
         Real,
     };
 
-    use nalgebra::{DMatrix, DMatrixViewMut, DVector, DVectorViewMut, Matrix3};
+    use nalgebra::{DMatrix, DMatrixViewMut, DVector, DVectorViewMut, Matrix3, U3};
 
     #[derive(Clone)]
     pub struct FactorA<R>
@@ -132,6 +135,7 @@ pub(crate) mod tests {
         R: Real,
     {
         type L = GaussianLoss<R>;
+        type JCols = U3;
         fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
         where
             C: VariablesContainer<R>,
@@ -192,6 +196,7 @@ pub(crate) mod tests {
         R: Real,
     {
         type L = GaussianLoss<R>;
+        type JCols = U3;
         fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
         where
             C: VariablesContainer<R>,
@@ -252,6 +257,7 @@ pub(crate) mod tests {
         R: Real,
     {
         type L = GaussianLoss<R>;
+        type JCols = U3;
         fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
         where
             C: VariablesContainer<R>,

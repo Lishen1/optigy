@@ -1,5 +1,5 @@
 use manif::LieGroupBase;
-use nalgebra::{convert, DMatrixViewMut, DVectorViewMut, Isometry2, Matrix3x6, Vector2, U3};
+use nalgebra::{convert, DMatrixViewMut, DVectorViewMut, Dyn, Isometry2, Matrix3x6, Vector2, U3};
 
 use optigy::core::{
     factor::Factor,
@@ -42,6 +42,8 @@ where
     LF: LossFunction<R>,
 {
     type L = LF;
+    type JCols = Dyn;
+    type JRows = Dyn;
     fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
     where
         C: VariablesContainer<R>,

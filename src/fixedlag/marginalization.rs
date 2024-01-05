@@ -1,6 +1,6 @@
 use faer_core::Matrix;
 use nalgebra::{
-    ComplexField, DMatrix, DMatrixView, DMatrixViewMut, DVector, DVectorViewMut,
+    ComplexField, DMatrix, DMatrixView, DMatrixViewMut, DVector, DVectorViewMut, Dyn,
     PermutationSequence, RawStorage, RealField,
 };
 use nalgebra_sparse::{pattern::SparsityPattern, CscMatrix};
@@ -58,6 +58,8 @@ where
     R: Real,
 {
     type L = GaussianLoss<R>;
+    type JCols = Dyn;
+    type JRows = Dyn;
     #[allow(non_snake_case)]
     fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
     where
