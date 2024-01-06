@@ -504,7 +504,7 @@ pub fn linearzation_full_hessian<R, VC, FC>(
 mod tests {
 
     use matrixcompare::assert_matrix_eq;
-    use nalgebra::{DMatrix, DMatrixViewMut, DVector, Matrix3x4, OMatrix, U3};
+    use nalgebra::{DMatrix, DMatrixViewMut, DVector, Matrix3x4, OMatrix, U2, U3};
     use nalgebra_sparse::{pattern::SparsityPattern, CscMatrix};
     use rand::{distributions::Uniform, prelude::Distribution};
 
@@ -665,7 +665,7 @@ mod tests {
                 // let jjj = OMatrix::<Real, _, _>::zeros_generic(shape.0, shape.1);
                 // let x: () = jjj;
                 // println!("jjj: {}", jjj);
-                let mut jjj = OMatrix::<Real, _, _>::zeros_generic(U3, U3);
+                let mut jjj = OMatrix::<Real, _, _>::zeros_generic(U2, U3);
                 let v: DMatrixViewMut<Real> = jjj.as_view_mut();
             }
             let variable_ordering = variables.default_variable_ordering();
