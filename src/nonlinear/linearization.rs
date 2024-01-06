@@ -223,7 +223,7 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
     //         >>;
     // let jacobian_view: FactorTypes<F, T>::JacbianViewMut<'_> = ;
     // let jacobian_view = DMatrixViewMut::<T>::from(jacobian.as_view_mut());
-    let jacobian_view = FactorTypes::<F, T>::into_dmatrix_view_mut(jacobian.as_view_mut());
+    // let jacobian_view = FactorTypes::<F, T>::into_dmatrix_view_mut(jacobian.as_view_mut());
     // let jacobian_view: MatrixViewMut<T, F::JRows, F::JCols, _, RawStorage::CStride> =
     //     jacobian.as_view_mut();
     // let jacobian_view: DMatrixViewMut<T> = jacobian.as_view_mut();
@@ -239,9 +239,12 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
         FactorTypes::<F, T>::into_dvector_view_mut(error.as_view_mut()),
     );
     // //  whiten err and jacobians
-    // if let Some(loss) = factor.loss_function() {
-    //     loss.weight_jacobians_error_in_place(error.as_view_mut(), jacobian.as_view_mut());
-    // }
+    if let Some(loss) = factor.loss_function() {
+        loss.weight_jacobians_error_in_place(
+            FactorTypes::<F, T>::into_dvector_view_mut(error.as_view_mut()),
+            FactorTypes::<F, T>::into_dmatrix_view_mut(jacobian.as_view_mut()),
+        );
+    }
     // let jacobians = jacobians;
     // let error = error;
 

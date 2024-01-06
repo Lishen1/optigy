@@ -1,5 +1,7 @@
 use manif::LieGroupBase;
-use nalgebra::{convert, DMatrixViewMut, DVectorViewMut, Dyn, Isometry2, Matrix3x6, Vector2, U3};
+use nalgebra::{
+    convert, DMatrixViewMut, DVectorViewMut, Dyn, Isometry2, Matrix3x6, Vector2, U3, U6,
+};
 
 use optigy::core::{
     factor::Factor,
@@ -42,10 +44,10 @@ where
     LF: LossFunction<R>,
 {
     type L = LF;
-    type JCols = Dyn;
-    type JRows = Dyn;
+    type JRows = U3;
+    type JCols = U6;
     fn jacobian_shape(&self) -> (Self::JRows, Self::JCols) {
-        (Dyn(3), Dyn(3))
+        (U3, U6)
     }
     fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
     where
