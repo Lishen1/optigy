@@ -4,7 +4,8 @@ use crate::nonlinear::sparsity_pattern::HessianSparsityPattern;
 use core::any::TypeId;
 
 use core::mem;
-use nalgebra::{DMatrixViewMut, DVectorViewMut};
+use nalgebra::allocator::Allocator;
+use nalgebra::{DMatrixViewMut, DVectorViewMut, DefaultAllocator, Dim, Dyn, U3};
 
 use super::factors::Factors;
 use super::key::Vkey;
@@ -14,27 +15,27 @@ use super::variables_container::VariablesContainer;
 use super::Real;
 use nalgebra::DVector;
 
-pub trait FactorsKey<R = f64>: Clone
+pub trait FactorsKey<T = f64>: Clone
 where
-    R: Real,
+    T: Real,
 {
-    type Value: 'static + Factor<R>;
+    type Value: 'static + Factor<T>;
 }
 
 /// The building block trait for recursive variadics.
-pub trait FactorsContainer<R = f64>: Clone + Default
+pub trait FactorsContainer<T = f64>: Clone + Default
 where
-    R: Real,
+    T: Real,
 {
     /// Try to get the value for N.
-    fn get<N: FactorsKey<R>>(&self) -> Option<&Vec<N::Value>>;
+    fn get<N: FactorsKey<T>>(&self) -> Option<&Vec<N::Value>>;
     /// Try to get the value for N mutably.
-    fn get_mut<N: FactorsKey<R>>(&mut self) -> Option<&mut Vec<N::Value>>;
+    fn get_mut<N: FactorsKey<T>>(&mut self) -> Option<&mut Vec<N::Value>>;
     /// Add the default value for N
-    fn and_factor<N: FactorsKey<R>>(self) -> FactorsEntry<N, Self, R>
+    fn and_factor<N: FactorsKey<T>>(self) -> FactorsEntry<N, Self, T>
     where
         Self: Sized,
-        N::Value: FactorsKey<R>,
+        N::Value: FactorsKey<T>,
     {
         match self.get::<N::Value>() {
             Some(_) => panic!(
@@ -59,47 +60,47 @@ where
     /// factor jacobians error by index
     fn jacobian_error_at<C>(
         &self,
-        variables: &Variables<C, R>,
-        jacobian: DMatrixViewMut<R>,
-        error: DVectorViewMut<R>,
+        variables: &Variables<C, T>,
+        jacobian: DMatrixViewMut<T>,
+        error: DVectorViewMut<T>,
         index: usize,
         init: usize,
     ) -> bool
     where
-        C: VariablesContainer<R>;
+        C: VariablesContainer<T>;
     /// weight factor error and jacobians in-place
     fn weight_jacobian_error_in_place_at<C>(
         &self,
-        variables: &Variables<C, R>,
-        error: DVectorViewMut<R>,
-        jacobians: DMatrixViewMut<R>,
+        variables: &Variables<C, T>,
+        error: DVectorViewMut<T>,
+        jacobians: DMatrixViewMut<T>,
         index: usize,
         init: usize,
     ) where
-        C: VariablesContainer<R>;
+        C: VariablesContainer<T>;
     /// weight factor error in-place
     fn weight_error_in_place_at<C>(
         &self,
-        variables: &Variables<C, R>,
-        error: DVectorViewMut<R>,
+        variables: &Variables<C, T>,
+        error: DVectorViewMut<T>,
         index: usize,
         init: usize,
     ) where
-        C: VariablesContainer<R>;
+        C: VariablesContainer<T>;
     /// factor weighted error by index
     fn error_at<C>(
         &self,
-        variables: &Variables<C, R>,
-        error: DVectorViewMut<R>,
+        variables: &Variables<C, T>,
+        error: DVectorViewMut<T>,
         index: usize,
         init: usize,
     ) -> bool
     where
-        C: VariablesContainer<R>;
+        C: VariablesContainer<T>;
     /// Returns `true` if factor with index has custom loss
-    fn has_loss_at<C>(&self, variables: &Variables<C, R>, index: usize, init: usize) -> bool
+    fn has_loss_at<C>(&self, variables: &Variables<C, T>, index: usize, init: usize) -> bool
     where
-        C: VariablesContainer<R>;
+        C: VariablesContainer<T>;
     /// factor type name used for debugging
     fn type_name_at(&self, index: usize, init: usize) -> Option<String>;
     /// Remove factors connected with variable with key
@@ -120,32 +121,32 @@ where
     fn empty_clone(&self) -> Self;
     fn add_connected_factor_to<C>(
         &self,
-        factors: &mut Factors<C, R>,
+        factors: &mut Factors<C, T>,
         keys: &[Vkey],
         indexes: &mut Vec<usize>,
         init: usize,
     ) where
-        C: FactorsContainer<R>;
+        C: FactorsContainer<T>;
     fn linearize_hessian<C>(
         &self,
-        variables: &Variables<C, R>,
+        variables: &Variables<C, T>,
         sparsity: &HessianSparsityPattern,
-        hessian_values: &mut [R],
-        gradient: &mut DVector<R>,
+        hessian_values: &mut [T],
+        gradient: &mut DVector<T>,
     ) where
-        C: VariablesContainer<R>;
+        C: VariablesContainer<T>;
 }
 
 /// The base case for recursive variadics: no fields.
 pub type FactorsEmpty = ();
-impl<R> FactorsContainer<R> for FactorsEmpty
+impl<T> FactorsContainer<T> for FactorsEmpty
 where
-    R: Real,
+    T: Real,
 {
-    fn get<N: FactorsKey<R>>(&self) -> Option<&Vec<N::Value>> {
+    fn get<N: FactorsKey<T>>(&self) -> Option<&Vec<N::Value>> {
         None
     }
-    fn get_mut<N: FactorsKey<R>>(&mut self) -> Option<&mut Vec<N::Value>> {
+    fn get_mut<N: FactorsKey<T>>(&mut self) -> Option<&mut Vec<N::Value>> {
         None
     }
     fn dim(&self, init: usize) -> usize {
@@ -166,47 +167,47 @@ where
 
     fn jacobian_error_at<C>(
         &self,
-        _variables: &Variables<C, R>,
-        _jacobian: DMatrixViewMut<R>,
-        _error: DVectorViewMut<R>,
+        _variables: &Variables<C, T>,
+        _jacobian: DMatrixViewMut<T>,
+        _error: DVectorViewMut<T>,
         _index: usize,
         _init: usize,
     ) -> bool
     where
-        C: VariablesContainer<R>,
+        C: VariablesContainer<T>,
     {
         false
     }
     fn weight_jacobian_error_in_place_at<C>(
         &self,
-        _variables: &Variables<C, R>,
-        _error: DVectorViewMut<R>,
-        _jacobians: DMatrixViewMut<R>,
+        _variables: &Variables<C, T>,
+        _error: DVectorViewMut<T>,
+        _jacobians: DMatrixViewMut<T>,
         _index: usize,
         _init: usize,
     ) where
-        C: VariablesContainer<R>,
+        C: VariablesContainer<T>,
     {
     }
     fn weight_error_in_place_at<C>(
         &self,
-        _variables: &Variables<C, R>,
-        _error: DVectorViewMut<R>,
+        _variables: &Variables<C, T>,
+        _error: DVectorViewMut<T>,
         _index: usize,
         _init: usize,
     ) where
-        C: VariablesContainer<R>,
+        C: VariablesContainer<T>,
     {
     }
     fn error_at<C>(
         &self,
-        _variables: &Variables<C, R>,
-        _error: DVectorViewMut<R>,
+        _variables: &Variables<C, T>,
+        _error: DVectorViewMut<T>,
         _index: usize,
         _init: usize,
     ) -> bool
     where
-        C: VariablesContainer<R>,
+        C: VariablesContainer<T>,
     {
         false
     }
@@ -225,73 +226,95 @@ where
     fn empty_clone(&self) -> Self {}
     fn add_connected_factor_to<C>(
         &self,
-        _factors: &mut Factors<C, R>,
+        _factors: &mut Factors<C, T>,
         _keys: &[Vkey],
         _indexes: &mut Vec<usize>,
         _init: usize,
     ) where
-        C: FactorsContainer<R>,
+        C: FactorsContainer<T>,
     {
     }
 
-    fn has_loss_at<C>(&self, _variables: &Variables<C, R>, _index: usize, _init: usize) -> bool
+    fn has_loss_at<C>(&self, _variables: &Variables<C, T>, _index: usize, _init: usize) -> bool
     where
-        C: VariablesContainer<R>,
+        C: VariablesContainer<T>,
     {
         false
     }
 
     fn linearize_hessian<C>(
         &self,
-        variables: &Variables<C, R>,
+        variables: &Variables<C, T>,
         sparsity: &HessianSparsityPattern,
-        hessian_values: &mut [R],
-        gradient: &mut DVector<R>,
+        hessian_values: &mut [T],
+        gradient: &mut DVector<T>,
     ) where
-        C: VariablesContainer<R>,
+        C: VariablesContainer<T>,
     {
     }
 }
 
 /// Wraps some field data and a parent, which is either another Entry or Empty
 #[derive(Clone)]
-pub struct FactorsEntry<T, P, R>
+pub struct FactorsEntry<K, P, T>
 where
-    T: FactorsKey<R>,
-    R: Real,
+    K: FactorsKey<T>,
+    T: Real,
 {
-    data: Vec<T::Value>,
+    data: Vec<K::Value>,
     parent: P,
 }
-impl<T, P, R> Default for FactorsEntry<T, P, R>
+impl<K, P, T> Default for FactorsEntry<K, P, T>
 where
-    T: FactorsKey<R>,
-    P: FactorsContainer<R> + Default,
-    R: Real,
+    K: FactorsKey<T>,
+    P: FactorsContainer<T> + Default,
+    T: Real,
 {
     fn default() -> Self {
-        FactorsEntry::<T, P, R> {
-            data: Vec::<T::Value>::default(),
+        FactorsEntry::<K, P, T> {
+            data: Vec::<K::Value>::default(),
             parent: P::default(),
         }
     }
 }
 
-impl<T, P, R> FactorsContainer<R> for FactorsEntry<T, P, R>
+impl<K, P, T> FactorsContainer<T> for FactorsEntry<K, P, T>
 where
-    T: FactorsKey<R>,
-    P: FactorsContainer<R> + Default,
-    R: Real,
+    K: FactorsKey<T>,
+    P: FactorsContainer<T> + Default,
+    T: Real,
+    DefaultAllocator: Allocator<T, <<K as FactorsKey<T>>::Value as Factor<T>>::JRows>,
+    DefaultAllocator: Allocator<T, <<K as FactorsKey<T>>::Value as Factor<T>>::JCols>,
+    DefaultAllocator: Allocator<
+        T,
+        <<K as FactorsKey<T>>::Value as Factor<T>>::JRows,
+        <<K as FactorsKey<T>>::Value as Factor<T>>::JCols,
+    >,
+    DefaultAllocator: Allocator<
+        T,
+        <<K as FactorsKey<T>>::Value as Factor<T>>::JCols,
+        <<K as FactorsKey<T>>::Value as Factor<T>>::JRows,
+    >,
+    // DefaultAllocator: Allocator<
+    //     T,
+    //     <<K as FactorsKey<T>>::Value as Factor<T>>::JRows,
+    //     <<K as FactorsKey<T>>::Value as Factor<T>>::JRows,
+    // >,
+    DefaultAllocator: Allocator<
+        T,
+        <<K as FactorsKey<T>>::Value as Factor<T>>::JCols,
+        <<K as FactorsKey<T>>::Value as Factor<T>>::JCols,
+    >,
 {
-    fn get<N: FactorsKey<R>>(&self) -> Option<&Vec<N::Value>> {
-        if TypeId::of::<N::Value>() == TypeId::of::<T::Value>() {
+    fn get<N: FactorsKey<T>>(&self) -> Option<&Vec<N::Value>> {
+        if TypeId::of::<N::Value>() == TypeId::of::<K::Value>() {
             Some(unsafe { mem::transmute(&self.data) })
         } else {
             self.parent.get::<N>()
         }
     }
-    fn get_mut<N: FactorsKey<R>>(&mut self) -> Option<&mut Vec<N::Value>> {
-        if TypeId::of::<N::Value>() == TypeId::of::<T::Value>() {
+    fn get_mut<N: FactorsKey<T>>(&mut self) -> Option<&mut Vec<N::Value>> {
+        if TypeId::of::<N::Value>() == TypeId::of::<K::Value>() {
             Some(unsafe { mem::transmute(&mut self.data) })
         } else {
             self.parent.get_mut::<N>()
@@ -331,14 +354,14 @@ where
     }
     fn jacobian_error_at<C>(
         &self,
-        variables: &Variables<C, R>,
-        jacobian: DMatrixViewMut<R>,
-        error: DVectorViewMut<R>,
+        variables: &Variables<C, T>,
+        jacobian: DMatrixViewMut<T>,
+        error: DVectorViewMut<T>,
         index: usize,
         init: usize,
     ) -> bool
     where
-        C: VariablesContainer<R>,
+        C: VariablesContainer<T>,
     {
         if (init..(init + self.data.len())).contains(&index) {
             self.data[index - init].jacobian_error(variables, jacobian, error);
@@ -350,13 +373,13 @@ where
     }
     fn weight_jacobian_error_in_place_at<C>(
         &self,
-        variables: &Variables<C, R>,
-        error: DVectorViewMut<R>,
-        jacobians: DMatrixViewMut<R>,
+        variables: &Variables<C, T>,
+        error: DVectorViewMut<T>,
+        jacobians: DMatrixViewMut<T>,
         index: usize,
         init: usize,
     ) where
-        C: VariablesContainer<R>,
+        C: VariablesContainer<T>,
     {
         if (init..(init + self.data.len())).contains(&index) {
             let loss = self.data[index - init].loss_function();
@@ -375,12 +398,12 @@ where
     }
     fn weight_error_in_place_at<C>(
         &self,
-        variables: &Variables<C, R>,
-        error: DVectorViewMut<R>,
+        variables: &Variables<C, T>,
+        error: DVectorViewMut<T>,
         index: usize,
         init: usize,
     ) where
-        C: VariablesContainer<R>,
+        C: VariablesContainer<T>,
     {
         if (init..(init + self.data.len())).contains(&index) {
             let loss = self.data[index - init].loss_function();
@@ -394,13 +417,13 @@ where
     }
     fn error_at<C>(
         &self,
-        variables: &Variables<C, R>,
-        error: DVectorViewMut<R>,
+        variables: &Variables<C, T>,
+        error: DVectorViewMut<T>,
         index: usize,
         init: usize,
     ) -> bool
     where
-        C: VariablesContainer<R>,
+        C: VariablesContainer<T>,
     {
         if (init..(init + self.data.len())).contains(&index) {
             self.data[index - init].error(variables, error);
@@ -411,9 +434,9 @@ where
         }
     }
 
-    fn has_loss_at<C>(&self, variables: &Variables<C, R>, index: usize, init: usize) -> bool
+    fn has_loss_at<C>(&self, variables: &Variables<C, T>, index: usize, init: usize) -> bool
     where
-        C: VariablesContainer<R>,
+        C: VariablesContainer<T>,
     {
         if (init..(init + self.data.len())).contains(&index) {
             self.data[index - init].loss_function().is_some()
@@ -425,7 +448,7 @@ where
 
     fn type_name_at(&self, index: usize, init: usize) -> Option<String> {
         if (init..(init + self.data.len())).contains(&index) {
-            Some(tynm::type_name::<T::Value>())
+            Some(tynm::type_name::<K::Value>())
         } else {
             self.parent.type_name_at(index, init + self.data.len())
         }
@@ -458,12 +481,12 @@ where
 
     fn add_connected_factor_to<C>(
         &self,
-        factors: &mut Factors<C, R>,
+        factors: &mut Factors<C, T>,
         keys: &[Vkey],
         indexes: &mut Vec<usize>,
         init: usize,
     ) where
-        C: FactorsContainer<R>,
+        C: FactorsContainer<T>,
     {
         for (i, f) in self.data.iter().enumerate() {
             let index = i + init;
@@ -481,12 +504,12 @@ where
 
     fn linearize_hessian<C>(
         &self,
-        variables: &Variables<C, R>,
+        variables: &Variables<C, T>,
         sparsity: &HessianSparsityPattern,
-        hessian_values: &mut [R],
-        gradient: &mut DVector<R>,
+        hessian_values: &mut [T],
+        gradient: &mut DVector<T>,
     ) where
-        C: VariablesContainer<R>,
+        C: VariablesContainer<T>,
     {
         for f in &self.data {
             linearize_hessian_single_factor(f, variables, sparsity, hessian_values, gradient);
@@ -496,19 +519,19 @@ where
     }
 }
 
-impl<T, R> FactorsKey<R> for T
+impl<K, T> FactorsKey<T> for K
 where
-    T: 'static + Factor<R>,
-    R: Real,
+    K: 'static + Factor<T>,
+    T: Real,
 {
-    type Value = T;
+    type Value = K;
 }
 
-pub fn get_factor_vec<C, F, R>(container: &C) -> &Vec<F>
+pub fn get_factor_vec<C, F, T>(container: &C) -> &Vec<F>
 where
-    C: FactorsContainer<R>,
-    F: Factor<R> + 'static,
-    R: Real,
+    C: FactorsContainer<T>,
+    F: Factor<T> + 'static,
+    T: Real,
 {
     #[cfg(not(debug_assertions))]
     {
@@ -525,19 +548,19 @@ where
         })
     }
 }
-pub fn get_factor<C, F, R>(container: &C, index: usize) -> Option<&F>
+pub fn get_factor<C, F, T>(container: &C, index: usize) -> Option<&F>
 where
-    C: FactorsContainer<R>,
-    F: Factor<R> + 'static,
-    R: Real,
+    C: FactorsContainer<T>,
+    F: Factor<T> + 'static,
+    T: Real,
 {
     get_factor_vec(container).get(index)
 }
-pub fn get_factor_vec_mut<C, F, R>(container: &mut C) -> &mut Vec<F>
+pub fn get_factor_vec_mut<C, F, T>(container: &mut C) -> &mut Vec<F>
 where
-    C: FactorsContainer<R>,
-    F: Factor<R> + 'static,
-    R: Real,
+    C: FactorsContainer<T>,
+    F: Factor<T> + 'static,
+    T: Real,
 {
     #[cfg(not(debug_assertions))]
     {
@@ -554,11 +577,11 @@ where
         })
     }
 }
-pub fn get_factor_mut<C, F, R>(container: &mut C, index: usize) -> Option<&mut F>
+pub fn get_factor_mut<C, F, T>(container: &mut C, index: usize) -> Option<&mut F>
 where
-    C: FactorsContainer<R>,
-    F: Factor<R> + 'static,
-    R: Real,
+    C: FactorsContainer<T>,
+    F: Factor<T> + 'static,
+    T: Real,
 {
     get_factor_vec_mut(container).get_mut(index)
 }

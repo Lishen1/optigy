@@ -5,6 +5,7 @@ use crate::core::variables::Variables;
 use nalgebra::DMatrixViewMut;
 use nalgebra::DVectorViewMut;
 use nalgebra::Dim;
+use nalgebra::Dyn;
 
 use super::variables_container::VariablesContainer;
 use super::Real;
@@ -14,8 +15,9 @@ where
     R: Real,
 {
     type L: LossFunction<R>;
-    type JCols: Dim;
     type JRows: Dim;
+    type JCols: Dim;
+    fn jacobian_shape(&self) -> (Self::JRows, Self::JCols);
     /// Computes value of factor function $f_i(\textbf{x})$.
     /// Dimension of $f_i(\textbf{x})$ must be equal to `dim()`.
     fn error<C>(&self, variables: &Variables<C, R>, error: DVectorViewMut<R>)
@@ -105,7 +107,7 @@ pub(crate) mod tests {
         Real,
     };
 
-    use nalgebra::{DMatrix, DMatrixViewMut, DVector, DVectorViewMut, Matrix3, U3};
+    use nalgebra::{DMatrix, DMatrixViewMut, DVector, DVectorViewMut, Dyn, Matrix3, U3, U6};
 
     #[derive(Clone)]
     pub struct FactorA<R>
@@ -135,7 +137,11 @@ pub(crate) mod tests {
         R: Real,
     {
         type L = GaussianLoss<R>;
+        type JRows = U6;
         type JCols = U3;
+        fn jacobian_shape(&self) -> (Self::JRows, Self::JCols) {
+            (U6, U3)
+        }
         fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
         where
             C: VariablesContainer<R>,
@@ -196,7 +202,11 @@ pub(crate) mod tests {
         R: Real,
     {
         type L = GaussianLoss<R>;
+        type JRows = U6;
         type JCols = U3;
+        fn jacobian_shape(&self) -> (Self::JRows, Self::JCols) {
+            (U6, U3)
+        }
         fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
         where
             C: VariablesContainer<R>,
@@ -257,7 +267,16 @@ pub(crate) mod tests {
         R: Real,
     {
         type L = GaussianLoss<R>;
-        type JCols = U3;
+        type JRows = Dyn;
+        type JCols = Dyn;
+        fn jacobian_shape(&self) -> (Self::JRows, Self::JCols) {
+            (Dyn(3), Dyn(6))
+        }
+        // type JRows = U3;
+        // type JCols = U3;
+        // fn jacobian_shape(&self) -> (Self::JRows, Self::JCols) {
+        //     (U3, U3)
+        // }
         fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
         where
             C: VariablesContainer<R>,

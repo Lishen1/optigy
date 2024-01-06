@@ -1,10 +1,19 @@
-use nalgebra::{DMatrix, DVector};
+// #![feature(generic_const_exprs)]
+use nalgebra::{
+    allocator::Allocator, Const, DMatrix, DVector, DefaultAllocator, Dyn, OMatrix, OVector, Vector,
+    U3,
+};
+use nalgebra::{DMatrixView, DMatrixViewMut, Dim, Matrix3, MatrixViewMut, SMatrix};
 use std::{collections::HashSet, ops::AddAssign};
 
 use crate::{
     core::{
-        factor::Factor, factors::Factors, factors_container::FactorsContainer,
-        loss_function::LossFunction, variables::Variables, variables_container::VariablesContainer,
+        factor::Factor,
+        factors::Factors,
+        factors_container::{FactorsContainer, FactorsKey},
+        loss_function::LossFunction,
+        variables::Variables,
+        variables_container::VariablesContainer,
         Real,
     },
     nonlinear::sparsity_pattern::HessianTriangle,
@@ -95,6 +104,12 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
     T: Real,
     F: Factor<T>,
     VC: VariablesContainer<T>,
+    DefaultAllocator: Allocator<T, F::JRows>,
+    DefaultAllocator: Allocator<T, F::JCols>,
+    DefaultAllocator: Allocator<T, F::JRows, F::JCols>,
+    DefaultAllocator: Allocator<T, F::JCols, F::JRows>,
+    // DefaultAllocator: Allocator<T, F::JRows, F::JRows>,
+    DefaultAllocator: Allocator<T, F::JCols, F::JCols>,
 {
     let tri = sparsity.tri;
     let f_keys = factor.keys();
@@ -116,14 +131,30 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
         jacobian_ncols.push(var_dim);
         local_col += var_dim;
     }
+    let shape = factor.jacobian_shape();
+    // let shape = factor.jacobian_shape()
+    // println!("shape: {:?}", shape);
+    // let jjj: OMatrix<T, F::JRows, F::JCols> = OMatrix::zeros_generic(shape.0, shape.1);
+    // let jjj: OMatrix<T, R, C> = OMatrix::zeros_generic(jacobian_shape.0, jacobian_shape.1);
+    // let jjj = OMatrix::<T, <F as Factor<T>>::JRows, <F as Factor<T>>::JCols>::zeros();
 
-    let mut error = DVector::<T>::zeros(f_dim);
-    let mut jacobian = DMatrix::<T>::zeros(f_dim, local_col);
-    factor.jacobian_error(variables, jacobian.as_view_mut(), error.as_view_mut());
-    //  whiten err and jacobians
-    if let Some(loss) = factor.loss_function() {
-        loss.weight_jacobians_error_in_place(error.as_view_mut(), jacobian.as_view_mut());
-    }
+    let m = Matrix3::<T>::zeros();
+    let mut error = OVector::<T, F::JRows>::zeros_generic(shape.0, Const::<1>);
+    // let mut error = DVector::<T>::zeros(f_dim);
+    // let mut jacobian = OMatrix::<T, F::JRows, F::JCols>::zeros(f_dim, local_col);
+    let mut jacobian = OMatrix::<T, F::JRows, F::JCols>::zeros_generic(shape.0, shape.1);
+    // let jacobian_view: MatrixViewMut<T, F::JRows, F::JCols> = jacobian.as_view_mut();
+    // let jacobian_view: DMatrixViewMut<T> = DMatrixViewMut::<T>::from(&jacobian.as_view_mut());
+
+    // let mut m0 = SMatrix::<T, 2, 2>::new(T::one(), T::one(), T::one(), T::one());
+    // let mut m0: OMatrix<T, _, _> = OMatrix::zeros_generic(Dyn(3), Dyn(3));
+    // let mut v0: DMatrixViewMut<T> = m0.as_view_mut();
+    // let a: () = jacobian_view;
+    // factor.jacobian_error(variables, jacobian.as_view_mut(), error.as_view_mut());
+    // //  whiten err and jacobians
+    // if let Some(loss) = factor.loss_function() {
+    //     loss.weight_jacobians_error_in_place(error.as_view_mut(), jacobian.as_view_mut());
+    // }
     // let jacobians = jacobians;
     // let error = error;
 
@@ -143,6 +174,8 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
 
     let stackJtb = jacobian.transpose() * error;
     let stackJtJ = jacobian.transpose() * jacobian;
+    // let stackJtb = DVector::<T>::zeros(1);
+    // let stackJtJ = DMatrix::<T>::zeros(1, 1);
     // #ifdef MINISAM_WITH_MULTI_THREADS
     //   mutex_b.lock();
     // #endif
@@ -471,13 +504,16 @@ pub fn linearzation_full_hessian<R, VC, FC>(
 mod tests {
 
     use matrixcompare::assert_matrix_eq;
-    use nalgebra::{DMatrix, DVector, Matrix3x4};
+    use nalgebra::{DMatrix, DMatrixViewMut, DVector, Matrix3x4, OMatrix, U3};
     use nalgebra_sparse::{pattern::SparsityPattern, CscMatrix};
     use rand::{distributions::Uniform, prelude::Distribution};
 
     use crate::{
         core::{
-            factor::tests::{FactorA, FactorB, RandomBlockFactor},
+            factor::{
+                tests::{FactorA, FactorB, RandomBlockFactor},
+                Factor,
+            },
             factors::Factors,
             factors_container::FactorsContainer,
             key::Vkey,
@@ -598,14 +634,18 @@ mod tests {
     fn linearize_hessian_random() {
         type Real = f64;
         for _ in 0..100 {
-            let container = ().and_variable::<RandomVariable<Real>>();
+            let container =
+                ().and_variable::<RandomVariable<Real>>()
+                    .and_variable::<VariableA<Real>>();
             let mut variables = Variables::new(container);
             let variables_cnt = 100;
             for k in 0..variables_cnt {
                 variables.add(Vkey(k), RandomVariable::<Real>::default());
             }
 
-            let container = ().and_factor::<RandomBlockFactor<Real>>();
+            let container =
+                ().and_factor::<RandomBlockFactor<Real>>()
+                    .and_factor::<FactorA<Real>>();
             let mut factors = Factors::new(container);
             let factors_cnt = 1000;
             let mut rng = rand::thread_rng();
@@ -617,6 +657,16 @@ mod tests {
                     continue;
                 }
                 factors.add(RandomBlockFactor::new(Vkey(k0), Vkey(k1)));
+                // factors.add(FactorA::new(1.0, None, Vkey(k0), Vkey(k1)));
+
+                // let factor = RandomBlockFactor::<Real>::new(Vkey(k0), Vkey(k1));
+                // let shape = factor.jacobian_shape();
+                // // println!("shape: {:?}", shape);
+                // let jjj = OMatrix::<Real, _, _>::zeros_generic(shape.0, shape.1);
+                // let x: () = jjj;
+                // println!("jjj: {}", jjj);
+                let mut jjj = OMatrix::<Real, _, _>::zeros_generic(U3, U3);
+                let v: DMatrixViewMut<Real> = jjj.as_view_mut();
             }
             let variable_ordering = variables.default_variable_ordering();
             let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);

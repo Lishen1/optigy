@@ -48,6 +48,9 @@ where
     type L = LF;
     type JCols = Dyn;
     type JRows = Dyn;
+    fn jacobian_shape(&self) -> (Self::JRows, Self::JCols) {
+        (Dyn(3), Dyn(3))
+    }
     fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
     where
         C: VariablesContainer<R>,

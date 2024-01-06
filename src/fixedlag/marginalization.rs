@@ -110,6 +110,10 @@ where
     fn loss_function(&self) -> Option<&Self::L> {
         None
     }
+
+    fn jacobian_shape(&self) -> (Self::JRows, Self::JCols) {
+        (Dyn(3), Dyn(3))
+    }
 }
 
 pub fn try_invert_symmetric_positive_semidefinite_matrix<R>(
