@@ -1,4 +1,3 @@
-#![feature(inherent_associated_types)]
 pub mod core;
 pub mod factor_graph;
 pub mod fixedlag;

@@ -99,74 +99,80 @@ pub fn linearzation_jacobian<R, VC, FC>(
         err_row_counter += f_dim;
     }
 }
-pub struct FactorTypes<F: Factor<T>, T: Real> {
-    __marker: PhantomData<(F, T)>,
-}
-impl<F: Factor<T>, T: Real> FactorTypes<F, T>
-where
-    DefaultAllocator:
-        nalgebra::allocator::Allocator<T, <F as Factor<T>>::JRows, <F as Factor<T>>::JCols>,
-    DefaultAllocator: nalgebra::allocator::Allocator<T, <F as Factor<T>>::JRows>,
-{
-    pub type JacobianBuffer = <DefaultAllocator as Allocator<T, F::JRows, F::JCols>>::Buffer;
-    pub type JacbianViewMut<'a> = nalgebra::Matrix<
+type FactorJacobianBuffer<F, T> =
+    <DefaultAllocator as Allocator<T, <F as Factor<T>>::JRows, <F as Factor<T>>::JCols>>::Buffer;
+type FactorJacobianViewMut<'a, F, T> = Matrix<
+    T,
+    <F as Factor<T>>::JRows,
+    <F as Factor<T>>::JCols,
+    ViewStorageMut<
+        'a,
         T,
-        F::JRows,
-        F::JCols,
-        nalgebra::ViewStorageMut<
-            'a,
+        <F as Factor<T>>::JRows,
+        <F as Factor<T>>::JCols,
+        <FactorJacobianBuffer<F, T> as RawStorage<
             T,
-            F::JRows,
-            F::JCols,
-            <Self::JacobianBuffer as RawStorage<T, F::JRows, F::JCols>>::RStride,
-            <Self::JacobianBuffer as RawStorage<T, F::JRows, F::JCols>>::CStride,
-        >,
-    >;
-    pub type ErrorBuffer = <DefaultAllocator as Allocator<T, F::JRows, Const<1>>>::Buffer;
-    pub type ErrorViewMut<'a> = nalgebra::Matrix<
+            <F as Factor<T>>::JRows,
+            <F as Factor<T>>::JCols,
+        >>::RStride,
+        <FactorJacobianBuffer<F, T> as RawStorage<
+            T,
+            <F as Factor<T>>::JRows,
+            <F as Factor<T>>::JCols,
+        >>::CStride,
+    >,
+>;
+type FactorErrorBuffer<F, T> =
+    <DefaultAllocator as Allocator<T, <F as Factor<T>>::JRows, Const<1>>>::Buffer;
+type FactorErrorViewMut<'a, F, T> = Matrix<
+    T,
+    <F as Factor<T>>::JRows,
+    Const<1>,
+    ViewStorageMut<
+        'a,
         T,
-        F::JRows,
+        <F as Factor<T>>::JRows,
         Const<1>,
-        nalgebra::ViewStorageMut<
-            'a,
-            T,
-            F::JRows,
-            Const<1>,
-            <Self::ErrorBuffer as RawStorage<T, F::JRows, Const<1>>>::RStride,
-            <Self::ErrorBuffer as RawStorage<T, F::JRows, Const<1>>>::CStride,
-        >,
-    >;
-    pub fn into_dmatrix_view_mut<'a>(
-        mut view_mut: FactorTypes<F, T>::JacbianViewMut<'a>,
-    ) -> DMatrixViewMut<'a, T> {
-        let shape = view_mut.data.shape();
-        let strides = view_mut.data.strides();
-        let data = ViewStorageMut {
-            ptr: view_mut.data.ptr_mut(),
-            shape: (
-                Dyn::from_usize(shape.0.value()),
-                Dyn::from_usize(shape.1.value()),
-            ),
-            strides: (Const::<1>, Dyn::from_usize(strides.1.value())),
-            _phantoms: PhantomData,
-        };
-        unsafe { Matrix::from_data_statically_unchecked(data) }
-    }
-    pub fn into_dvector_view_mut<'a>(
-        mut view_mut: FactorTypes<F, T>::ErrorViewMut<'a>,
-    ) -> DVectorViewMut<'a, T> {
-        let shape = view_mut.data.shape();
-        let strides = view_mut.data.strides();
-        let data = ViewStorageMut {
-            ptr: view_mut.data.ptr_mut(),
-            shape: (Dyn::from_usize(shape.0.value()), Const::<1>),
-            strides: (Const::<1>, Dyn::from_usize(strides.1.value())),
-            _phantoms: PhantomData,
-        };
-        unsafe { Matrix::from_data_statically_unchecked(data) }
-    }
-}
+        <FactorErrorBuffer<F, T> as RawStorage<T, <F as Factor<T>>::JRows, Const<1>>>::RStride,
+        <FactorErrorBuffer<F, T> as RawStorage<T, <F as Factor<T>>::JRows, Const<1>>>::CStride,
+    >,
+>;
 
+pub fn into_dmatrix_view_mut<'a, F: Factor<T>, T: Real>(
+    mut view_mut: FactorJacobianViewMut<'a, F, T>,
+) -> DMatrixViewMut<'a, T>
+where
+    DefaultAllocator: Allocator<T, F::JRows, F::JCols>,
+{
+    let shape = view_mut.data.shape();
+    let strides = view_mut.data.strides();
+    let data = ViewStorageMut {
+        ptr: view_mut.data.ptr_mut(),
+        shape: (
+            Dyn::from_usize(shape.0.value()),
+            Dyn::from_usize(shape.1.value()),
+        ),
+        strides: (Const::<1>, Dyn::from_usize(strides.1.value())),
+        _phantoms: PhantomData,
+    };
+    unsafe { Matrix::from_data_statically_unchecked(data) }
+}
+pub fn into_dvector_view_mut<'a, F: Factor<T>, T: Real>(
+    mut view_mut: FactorErrorViewMut<'a, F, T>,
+) -> DVectorViewMut<'a, T>
+where
+    DefaultAllocator: Allocator<T, F::JRows>,
+{
+    let shape = view_mut.data.shape();
+    let strides = view_mut.data.strides();
+    let data = ViewStorageMut {
+        ptr: view_mut.data.ptr_mut(),
+        shape: (Dyn::from_usize(shape.0.value()), Const::<1>),
+        strides: (Const::<1>, Dyn::from_usize(strides.1.value())),
+        _phantoms: PhantomData,
+    };
+    unsafe { Matrix::from_data_statically_unchecked(data) }
+}
 pub fn linearize_hessian_single_factor<F, VC, T>(
     factor: &F,
     variables: &Variables<VC, T>,
@@ -181,9 +187,9 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
     DefaultAllocator: Allocator<T, F::JCols>,
     DefaultAllocator: Allocator<T, F::JRows, F::JCols>,
     DefaultAllocator: Allocator<T, F::JCols, F::JRows>,
-    // DefaultAllocator: Allocator<T, F::JRows, F::JRows>,
     DefaultAllocator: Allocator<T, F::JCols, F::JCols>,
-    // for<'a> DMatrixViewMut<'a, T>: From<FactorTypes<F, T>::JacbianViewMut<'a>>,
+    // for<'a> DMatrixViewMut<'a, T>: From<FactorJacobianViewMut<'a, F, T>>,
+    // for<'a> DVectorViewMut<'a, T>: From<FactorErrorViewMut<'a, F, T>>,
 {
     let tri = sparsity.tri;
     let f_keys = factor.keys();
@@ -226,7 +232,9 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
     // let jacobian_view = FactorTypes::<F, T>::into_dmatrix_view_mut(jacobian.as_view_mut());
     // let jacobian_view: MatrixViewMut<T, F::JRows, F::JCols, _, RawStorage::CStride> =
     //     jacobian.as_view_mut();
-    // let jacobian_view: DMatrixViewMut<T> = jacobian.as_view_mut();
+
+    // let jacobian_view: DMatrixViewMut<T> = jacobian.as_view_mut().into();
+
     // let jacobian_view: DMatrixViewMut<T> = jacobian.as_view_mut();
 
     // let mut m0 = SMatrix::<T, 2, 2>::new(T::one(), T::one(), T::one(), T::one());
@@ -235,14 +243,14 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
     // let a: () = jacobian_view;
     factor.jacobian_error(
         variables,
-        FactorTypes::<F, T>::into_dmatrix_view_mut(jacobian.as_view_mut()),
-        FactorTypes::<F, T>::into_dvector_view_mut(error.as_view_mut()),
+        into_dmatrix_view_mut::<F, T>(jacobian.as_view_mut()),
+        into_dvector_view_mut::<F, T>(error.as_view_mut()),
     );
     // //  whiten err and jacobians
     if let Some(loss) = factor.loss_function() {
         loss.weight_jacobians_error_in_place(
-            FactorTypes::<F, T>::into_dvector_view_mut(error.as_view_mut()),
-            FactorTypes::<F, T>::into_dmatrix_view_mut(jacobian.as_view_mut()),
+            into_dvector_view_mut::<F, T>(error.as_view_mut()),
+            into_dmatrix_view_mut::<F, T>(jacobian.as_view_mut()),
         );
     }
     // let jacobians = jacobians;
