@@ -5,7 +5,7 @@ use core::any::TypeId;
 
 use core::mem;
 use nalgebra::allocator::Allocator;
-use nalgebra::{DMatrixViewMut, DVectorViewMut, DefaultAllocator, Dim, Dyn, U3};
+use nalgebra::{DMatrixViewMut, DVectorViewMut, DefaultAllocator};
 
 use super::factors::Factors;
 use super::key::Vkey;
@@ -244,10 +244,10 @@ where
 
     fn linearize_hessian<C>(
         &self,
-        variables: &Variables<C, T>,
-        sparsity: &HessianSparsityPattern,
-        hessian_values: &mut [T],
-        gradient: &mut DVector<T>,
+        _variables: &Variables<C, T>,
+        _sparsity: &HessianSparsityPattern,
+        _hessian_values: &mut [T],
+        _gradient: &mut DVector<T>,
     ) where
         C: VariablesContainer<T>,
     {
@@ -295,11 +295,6 @@ where
         <<K as FactorsKey<T>>::Value as Factor<T>>::JCols,
         <<K as FactorsKey<T>>::Value as Factor<T>>::JRows,
     >,
-    // DefaultAllocator: Allocator<
-    //     T,
-    //     <<K as FactorsKey<T>>::Value as Factor<T>>::JRows,
-    //     <<K as FactorsKey<T>>::Value as Factor<T>>::JRows,
-    // >,
     DefaultAllocator: Allocator<
         T,
         <<K as FactorsKey<T>>::Value as Factor<T>>::JCols,
