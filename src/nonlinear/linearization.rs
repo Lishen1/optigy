@@ -138,7 +138,7 @@ type FactorErrorViewMut<'a, F, T> = Matrix<
     >,
 >;
 
-pub fn into_dmatrix_view_mut<'a, F: Factor<T>, T: Real>(
+pub fn factor_jacobian_view_mut_as_dynamic<'a, F: Factor<T>, T: Real>(
     mut view_mut: FactorJacobianViewMut<'a, F, T>,
 ) -> DMatrixViewMut<'a, T>
 where
@@ -146,18 +146,20 @@ where
 {
     let shape = view_mut.data.shape();
     let strides = view_mut.data.strides();
-    let data = ViewStorageMut {
-        ptr: view_mut.data.ptr_mut(),
-        shape: (
-            Dyn::from_usize(shape.0.value()),
-            Dyn::from_usize(shape.1.value()),
-        ),
-        strides: (Const::<1>, Dyn::from_usize(strides.1.value())),
-        _phantoms: PhantomData,
-    };
-    unsafe { Matrix::from_data_statically_unchecked(data) }
+    assert_eq!(strides.0.value(), 1);
+    unsafe {
+        let data = ViewStorageMut::from_raw_parts(
+            view_mut.data.ptr_mut(),
+            (
+                Dyn::from_usize(shape.0.value()),
+                Dyn::from_usize(shape.1.value()),
+            ),
+            (Const::<1>, Dyn::from_usize(strides.1.value())),
+        );
+        Matrix::from_data_statically_unchecked(data)
+    }
 }
-pub fn into_dvector_view_mut<'a, F: Factor<T>, T: Real>(
+pub fn factor_error_view_mut_as_dynamic<'a, F: Factor<T>, T: Real>(
     mut view_mut: FactorErrorViewMut<'a, F, T>,
 ) -> DVectorViewMut<'a, T>
 where
@@ -165,13 +167,17 @@ where
 {
     let shape = view_mut.data.shape();
     let strides = view_mut.data.strides();
-    let data = ViewStorageMut {
-        ptr: view_mut.data.ptr_mut(),
-        shape: (Dyn::from_usize(shape.0.value()), Const::<1>),
-        strides: (Const::<1>, Dyn::from_usize(strides.1.value())),
-        _phantoms: PhantomData,
-    };
-    unsafe { Matrix::from_data_statically_unchecked(data) }
+    assert_eq!(shape.1.value(), 1);
+    assert_eq!(strides.0.value(), 1);
+    unsafe {
+        let data = ViewStorageMut::from_raw_parts(
+            view_mut.data.ptr_mut(),
+            (Dyn::from_usize(shape.0.value()), Const::<1>),
+            (Const::<1>, Dyn::from_usize(strides.1.value())),
+        );
+
+        Matrix::from_data_statically_unchecked(data)
+    }
 }
 pub fn linearize_hessian_single_factor<F, VC, T>(
     factor: &F,
@@ -188,8 +194,6 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
     DefaultAllocator: Allocator<T, F::JRows, F::JCols>,
     DefaultAllocator: Allocator<T, F::JCols, F::JRows>,
     DefaultAllocator: Allocator<T, F::JCols, F::JCols>,
-    // for<'a> DMatrixViewMut<'a, T>: From<FactorJacobianViewMut<'a, F, T>>,
-    // for<'a> DVectorViewMut<'a, T>: From<FactorErrorViewMut<'a, F, T>>,
 {
     let tri = sparsity.tri;
     let f_keys = factor.keys();
@@ -212,49 +216,21 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
         local_col += var_dim;
     }
     let shape = factor.jacobian_shape();
-    // let shape = factor.jacobian_shape()
-    // println!("shape: {:?}", shape);
-    // let jjj: OMatrix<T, F::JRows, F::JCols> = OMatrix::zeros_generic(shape.0, shape.1);
-    // let jjj: OMatrix<T, R, C> = OMatrix::zeros_generic(jacobian_shape.0, jacobian_shape.1);
-    // let jjj = OMatrix::<T, <F as Factor<T>>::JRows, <F as Factor<T>>::JCols>::zeros();
-    // let mut error = DVector::<T>::zeros(f_dim);
-    // let mut jacobian = OMatrix::<T, F::JRows, F::JCols>::zeros(f_dim, local_col);
-
     let mut error = OVector::<T, F::JRows>::zeros_generic(shape.0, Const::<1>);
     let mut jacobian = OMatrix::<T, F::JRows, F::JCols>::zeros_generic(shape.0, shape.1);
-    // type FactorRawStorage<F> = <<DefaultAllocator as Allocator<T, F::JRows, F::JCols>>::Buffer as RawStorage<
-    //             T,
-    //             F::JRows,
-    //             F::JCols,
-    //         >>;
-    // let jacobian_view: FactorTypes<F, T>::JacbianViewMut<'_> = ;
-    // let jacobian_view = DMatrixViewMut::<T>::from(jacobian.as_view_mut());
-    // let jacobian_view = FactorTypes::<F, T>::into_dmatrix_view_mut(jacobian.as_view_mut());
-    // let jacobian_view: MatrixViewMut<T, F::JRows, F::JCols, _, RawStorage::CStride> =
-    //     jacobian.as_view_mut();
 
-    // let jacobian_view: DMatrixViewMut<T> = jacobian.as_view_mut().into();
-
-    // let jacobian_view: DMatrixViewMut<T> = jacobian.as_view_mut();
-
-    // let mut m0 = SMatrix::<T, 2, 2>::new(T::one(), T::one(), T::one(), T::one());
-    // let mut m0: OMatrix<T, _, _> = OMatrix::zeros_generic(Dyn(3), Dyn(3));
-    // let mut v0: DMatrixViewMut<T> = m0.as_view_mut();
-    // let a: () = jacobian_view;
     factor.jacobian_error(
         variables,
-        into_dmatrix_view_mut::<F, T>(jacobian.as_view_mut()),
-        into_dvector_view_mut::<F, T>(error.as_view_mut()),
+        factor_jacobian_view_mut_as_dynamic::<F, T>(jacobian.as_view_mut()),
+        factor_error_view_mut_as_dynamic::<F, T>(error.as_view_mut()),
     );
-    // //  whiten err and jacobians
+    //  whiten error and jacobian
     if let Some(loss) = factor.loss_function() {
         loss.weight_jacobians_error_in_place(
-            into_dvector_view_mut::<F, T>(error.as_view_mut()),
-            into_dmatrix_view_mut::<F, T>(jacobian.as_view_mut()),
+            factor_error_view_mut_as_dynamic::<F, T>(error.as_view_mut()),
+            factor_jacobian_view_mut_as_dynamic::<F, T>(jacobian.as_view_mut()),
         );
     }
-    // let jacobians = jacobians;
-    // let error = error;
 
     // let mut stackJtJ = DMatrix::<R>::zeros(stackJ.ncols(), stackJ.ncols());
     // adaptive multiply for better speed
@@ -270,10 +246,10 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
     // let sts = ;
     // stackJtJ.copy_from(&(stackJ.transpose() * stackJ.clone()));
 
-    let stackJtb = jacobian.transpose() * error;
-    let stackJtJ = jacobian.transpose() * jacobian;
-    // let stackJtb = DVector::<T>::zeros(1);
-    // let stackJtJ = DMatrix::<T>::zeros(1, 1);
+    let jacobian_t = jacobian.transpose();
+    let stack_grad = &jacobian_t * error;
+    let stack_hess = jacobian_t * jacobian;
+
     // #ifdef MINISAM_WITH_MULTI_THREADS
     //   mutex_b.lock();
     // #endif
@@ -281,7 +257,7 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
     for j_idx in 0..f_len {
         gradient
             .rows_mut(jacobian_col[j_idx], jacobian_ncols[j_idx])
-            .add_assign(&stackJtb.rows(jacobian_col_local[j_idx], jacobian_ncols[j_idx]));
+            .add_assign(&stack_grad.rows(jacobian_col_local[j_idx], jacobian_ncols[j_idx]));
     }
 
     // #ifdef MINISAM_WITH_MULTI_THREADS
@@ -291,8 +267,8 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
 
     for j_idx in 0..f_len {
         // scan by row
-        let nnz_AtA_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
-        let mut value_idx: usize = nnz_AtA_vars_accum_var;
+        let nnz_hessian_vars_accum_var = sparsity.nnz_AtA_vars_accum[var_idx[j_idx]];
+        let mut value_idx: usize = nnz_hessian_vars_accum_var;
         let j_col_local = jacobian_col_local[j_idx];
         let j_ncols = jacobian_ncols[j_idx];
         let j_col = jacobian_col[j_idx];
@@ -303,7 +279,7 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
             };
             let fill = |values: &mut [T], idx: &mut usize| {
                 for i in i_range.clone() {
-                    values[*idx] += stackJtJ[(j_col_local + i, j_col_local + j)];
+                    values[*idx] += stack_hess[(j_col_local + i, j_col_local + j)];
                     *idx += 1;
                 }
             };
@@ -337,7 +313,7 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
             // assume var_idx[j1_idx] >(lower) <(upper) var_idx[j2_idx]
             // insert to block location (j1_idx, j2_idx)
             if comp {
-                let nnz_AtA_vars_accum_var2 = sparsity.nnz_AtA_vars_accum[j2_var_idx];
+                let nnz_hessian_vars_accum_var2 = sparsity.nnz_AtA_vars_accum[j2_var_idx];
                 let var2_dim = sparsity.base.var_dim[j2_var_idx];
 
                 let inner_insert_var2_var1 = sparsity.inner_insert_map[j2_var_idx]
@@ -347,11 +323,11 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
                 let val_offset: usize;
                 match tri {
                     HessianTriangle::Upper => {
-                        value_idx = nnz_AtA_vars_accum_var2 + inner_insert_var2_var1;
+                        value_idx = nnz_hessian_vars_accum_var2 + inner_insert_var2_var1;
                         val_offset = 0;
                     }
                     HessianTriangle::Lower => {
-                        value_idx = nnz_AtA_vars_accum_var2 + var2_dim + inner_insert_var2_var1;
+                        value_idx = nnz_hessian_vars_accum_var2 + var2_dim + inner_insert_var2_var1;
                         val_offset = 1;
                     }
                 }
@@ -369,7 +345,7 @@ pub fn linearize_hessian_single_factor<F, VC, T>(
                         if j1_idx <= j2_idx {
                             (r, c) = (c, r);
                         }
-                        hessian_values[value_idx] += stackJtJ[(r, c)];
+                        hessian_values[value_idx] += stack_hess[(r, c)];
                         value_idx += 1;
                     }
                     value_idx += sparsity.nnz_AtA_cols[jacobian_col[j2_idx] + j]
@@ -608,10 +584,7 @@ mod tests {
 
     use crate::{
         core::{
-            factor::{
-                tests::{FactorA, FactorB, RandomBlockFactor},
-                Factor,
-            },
+            factor::tests::{FactorA, FactorB, RandomBlockFactor},
             factors::Factors,
             factors_container::FactorsContainer,
             key::Vkey,
@@ -755,18 +728,6 @@ mod tests {
                     continue;
                 }
                 factors.add(RandomBlockFactor::new(Vkey(k0), Vkey(k1)));
-                // factors.add(FactorA::new(1.0, None, Vkey(k0), Vkey(k1)));
-
-                // let factor = RandomBlockFactor::<Real>::new(Vkey(k0), Vkey(k1));
-                // let shape = factor.jacobian_shape();
-                // // println!("shape: {:?}", shape);
-                // let jjj = OMatrix::<Real, _, _>::zeros_generic(shape.0, shape.1);
-                // let x: () = jjj;
-                // println!("jjj: {}", jjj);
-                let mut jjj = OMatrix::<Real, _, _>::zeros_generic(U2, U3);
-                let v: DMatrixViewMut<Real> = jjj.as_view_mut();
-                let b: MatrixViewMut<Real, U2, U3> = jjj.as_view_mut();
-                let b = DMatrixViewMut::<Real>::from(jjj.as_view_mut());
             }
             let variable_ordering = variables.default_variable_ordering();
             let pattern = construct_jacobian_sparsity(&factors, &variables, &variable_ordering);

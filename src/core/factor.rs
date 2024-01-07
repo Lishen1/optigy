@@ -137,10 +137,10 @@ pub(crate) mod tests {
         R: Real,
     {
         type L = GaussianLoss<R>;
-        type JRows = U6;
-        type JCols = U3;
+        type JRows = U3;
+        type JCols = U6;
         fn jacobian_shape(&self) -> (Self::JRows, Self::JCols) {
-            (U6, U3)
+            (U3, U6)
         }
         fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
         where
@@ -202,10 +202,10 @@ pub(crate) mod tests {
         R: Real,
     {
         type L = GaussianLoss<R>;
-        type JRows = U6;
-        type JCols = U3;
+        type JRows = U3;
+        type JCols = U6;
         fn jacobian_shape(&self) -> (Self::JRows, Self::JCols) {
-            (U6, U3)
+            (U3, U6)
         }
         fn error<C>(&self, variables: &Variables<C, R>, mut error: DVectorViewMut<R>)
         where
